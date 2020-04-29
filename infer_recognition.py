@@ -22,11 +22,12 @@ def load_data(data_path):
     wav_output = []
     for sliced in intervals:
         wav_output.extend(wav[sliced[0]:sliced[1]])
+    wav_len = 32640
     # 裁剪过长的音频，过短的补0
-    if len(wav_output) > 32640:
-        wav_output = wav_output[:32640]
+    if len(wav_output) > wav_len:
+        wav_output = wav_output[:wav_len]
     else:
-        wav_output.extend(np.zeros(shape=[32640 - len(wav_output)], dtype=np.float32))
+        wav_output.extend(np.zeros(shape=[wav_len - len(wav_output)], dtype=np.float32))
     wav_output = np.array(wav_output)
     # 获取梅尔频谱
     ps = librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).astype(np.float32)
@@ -70,7 +71,7 @@ if __name__ == '__main__':
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
     RATE = 16000
-    RECORD_SECONDS = 4
+    RECORD_SECONDS = 3
     WAVE_OUTPUT_FILENAME = "infer_audio.wav"
 
     # 打开录音
