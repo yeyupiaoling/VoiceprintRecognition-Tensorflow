@@ -1,4 +1,6 @@
 import os
+import random
+
 import librosa
 import numpy as np
 import tensorflow as tf
@@ -36,22 +38,28 @@ def create_data_tfrecord(data_list_path, save_path):
         for d in tqdm(data):
             try:
                 path, label = d.replace('\n', '').split('\t')
-                wav, sr = librosa.load(path)
+                wav, sr = librosa.load(path, sr=16000)
                 intervals = librosa.effects.split(wav, top_db=20)
                 wav_output = []
+                wav_len = 32640
                 for sliced in intervals:
                     wav_output.extend(wav[sliced[0]:sliced[1]])
-                # 裁剪过长的音频，过短的补0
-                if len(wav_output) > 65489:
-                    wav_output = wav_output[:65489]
-                else:
-                    wav_output.extend(np.zeros(shape=[65489 - len(wav_output)], dtype=np.float32))
-                wav_output = np.array(wav_output)
-                # 转成梅尔频谱
-                ps = librosa.feature.melspectrogram(y=wav_output, sr=sr).reshape(-1).tolist()
-                if len(ps) != 128 * 128: continue
-                tf_example = data_example(ps, int(label))
-                writer.write(tf_example.SerializeToString())
+                for i in range(5):
+                    # 裁剪过长的音频，过短的补0
+                    if len(wav_output) > wav_len:
+                        l = len(wav_output) - wav_len
+                        r = random.randint(0, l)
+                        wav_output = wav_output[r:wav_len + r]
+                    else:
+                        wav_output.extend(np.zeros(shape=[wav_len - len(wav_output)], dtype=np.float32))
+                    wav_output = np.array(wav_output)
+                    # 转成梅尔频谱
+                    ps = librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).reshape(-1).tolist()
+                    if len(ps) != 128 * 128: continue
+                    tf_example = data_example(ps, int(label))
+                    writer.write(tf_example.SerializeToString())
+                    if len(wav_output) <= wav_len:
+                        break
             except Exception as e:
                 print(e)
 
