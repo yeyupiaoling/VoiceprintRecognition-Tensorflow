@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 
 
-layer_name = 'dense'
+layer_name = 'dropout'
 model = tf.keras.models.load_model('models/resnet.h5')
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
@@ -16,16 +16,10 @@ def load_data(data_path):
     wav_output = []
     for sliced in intervals:
         wav_output.extend(wav[sliced[0]:sliced[1]])
-    wav_len = 32640
-    # 裁剪过长的音频，过短的补0
-    if len(wav_output) > wav_len:
-        wav_output = wav_output[:wav_len]
-    else:
-        wav_output.extend(np.zeros(shape=[wav_len - len(wav_output)], dtype=np.float32))
+    assert len(wav_output) >= 8000, "有效音频小于0.5s"
     wav_output = np.array(wav_output)
-    # 获取梅尔频谱
     ps = librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).astype(np.float32)
-    ps = ps[np.newaxis, np.newaxis, ...]
+    ps = ps[np.newaxis, ..., np.newaxis]
     return ps
 
 
@@ -37,10 +31,10 @@ def infer(audio_path):
 
 if __name__ == '__main__':
     # 要预测的两个人的音频文件
-    person1 = 'dataset/UrbanSound8K/audio/fold8/193699-2-0-46.wav'
-    person2 = 'dataset/UrbanSound8K/audio/fold8/193699-2-0-46.wav'
-    feature1 = infer(person1)
-    feature2 = infer(person2)
+    person1 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00001I0081.wav'
+    person2 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00001A0101.wav'
+    feature1 = infer(person1)[0]
+    feature2 = infer(person2)[0]
     # 对角余弦值
     dist = np.dot(feature1, feature2) / (np.linalg.norm(feature1) * np.linalg.norm(feature2))
     if dist > 0.9:

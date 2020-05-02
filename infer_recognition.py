@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 
 
-layer_name = 'dense'
+layer_name = 'dropout'
 model = tf.keras.models.load_model('models/resnet.h5')
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
@@ -22,16 +22,11 @@ def load_data(data_path):
     wav_output = []
     for sliced in intervals:
         wav_output.extend(wav[sliced[0]:sliced[1]])
-    wav_len = 32640
-    # 裁剪过长的音频，过短的补0
-    if len(wav_output) > wav_len:
-        wav_output = wav_output[:wav_len]
-    else:
-        wav_output.extend(np.zeros(shape=[wav_len - len(wav_output)], dtype=np.float32))
+    if len(wav_output) < 8000:
+        raise Exception("有效音频小于0.5s")
     wav_output = np.array(wav_output)
-    # 获取梅尔频谱
     ps = librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).astype(np.float32)
-    ps = ps[np.newaxis, np.newaxis, ...]
+    ps = ps[np.newaxis, ..., np.newaxis]
     return ps
 
 
