@@ -42,7 +42,7 @@ def create_data_tfrecord(data_list_path, save_path):
                 intervals = librosa.effects.split(wav, top_db=20)
                 wav_output = []
                 # [可能需要修改参数] 音频长度 16000 * 秒数
-                wav_len = 32640
+                wav_len = int(16000 * 2.04)
                 for sliced in intervals:
                     wav_output.extend(wav[sliced[0]:sliced[1]])
                 for i in range(20):
