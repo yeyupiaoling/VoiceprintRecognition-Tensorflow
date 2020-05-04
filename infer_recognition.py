@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     while True:
         try:
-            i = input("按下回车键开机录音，录音4秒中：")
+            i = input("按下回车键开机录音，录音3秒中：")
             print("开始录音......")
             frames = []
             for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
