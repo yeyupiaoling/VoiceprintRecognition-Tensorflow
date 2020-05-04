@@ -10,7 +10,6 @@ model = tf.keras.models.Sequential([
     tf.keras.applications.ResNet50(include_top=False, weights=None, input_shape=(128, None, 1)),
     tf.keras.layers.GlobalMaxPooling2D(),
     tf.keras.layers.Dropout(rate=0.5),
-    tf.keras.layers.BatchNormalization(),
     tf.keras.layers.Dense(units=class_dim, activation=tf.nn.softmax)
 ])
 
