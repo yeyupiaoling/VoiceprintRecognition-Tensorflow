@@ -2,6 +2,7 @@ import tensorflow as tf
 
 
 def _parse_data_function(example):
+    # [可能需要修改参数】 设置的梅尔频谱的shape相乘的值
     data_feature_description = {
         'data': tf.io.FixedLenFeature([16384], tf.float32),
         'label': tf.io.FixedLenFeature([], tf.int64),

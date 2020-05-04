@@ -41,10 +41,11 @@ def create_data_tfrecord(data_list_path, save_path):
                 wav, sr = librosa.load(path, sr=16000)
                 intervals = librosa.effects.split(wav, top_db=20)
                 wav_output = []
+                # [可能需要修改参数] 音频长度 16000 * 秒数
                 wav_len = 32640
                 for sliced in intervals:
                     wav_output.extend(wav[sliced[0]:sliced[1]])
-                for i in range(5):
+                for i in range(20):
                     # 裁剪过长的音频，过短的补0
                     if len(wav_output) > wav_len:
                         l = len(wav_output) - wav_len
@@ -55,6 +56,7 @@ def create_data_tfrecord(data_list_path, save_path):
                     wav_output = np.array(wav_output)
                     # 转成梅尔频谱
                     ps = librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).reshape(-1).tolist()
+                    # [可能需要修改参数] 梅尔频谱shape ，librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).shape
                     if len(ps) != 128 * 128: continue
                     tf_example = data_example(ps, int(label))
                     writer.write(tf_example.SerializeToString())

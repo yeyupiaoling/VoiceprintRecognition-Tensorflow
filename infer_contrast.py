@@ -31,13 +31,13 @@ def infer(audio_path):
 
 if __name__ == '__main__':
     # 要预测的两个人的音频文件
-    person1 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00001I0081.wav'
-    person2 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00001A0101.wav'
+    person1 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00011A0001.wav'
+    person2 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00011I0081.wav'
     feature1 = infer(person1)[0]
     feature2 = infer(person2)[0]
     # 对角余弦值
     dist = np.dot(feature1, feature2) / (np.linalg.norm(feature1) * np.linalg.norm(feature2))
-    if dist > 0.9:
+    if dist > 0.7:
         print("%s 和 %s 为同一个人，相似度为：%f" % (person1, person2, dist))
     else:
         print("%s 和 %s 不是同一个人，相似度为：%f" % (person1, person2, dist))

@@ -45,6 +45,7 @@ def load_audio_db(audio_db_path):
         feature = infer(path)
         person_name.append(name)
         person_feature.append(feature)
+        print("Loaded %s audio." % name)
 
 
 def recognition(path):

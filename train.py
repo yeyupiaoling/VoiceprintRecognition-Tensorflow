@@ -22,6 +22,7 @@ train_dataset = reader.train_reader_tfrecord('dataset/train.tfrecord', EPOCHS, b
 test_dataset = reader.test_reader_tfrecord('dataset/test.tfrecord', batch_size=BATCH_SIZE)
 
 for batch_id, data in enumerate(train_dataset):
+    # [可能需要修改参数】 设置的梅尔频谱的shape
     sounds = data['data'].numpy().reshape((BATCH_SIZE, 128, 128, 1))
     labels = data['label']
     # 执行训练
@@ -45,6 +46,7 @@ for batch_id, data in enumerate(train_dataset):
         test_losses = list()
         test_accuracies = list()
         for d in test_dataset:
+            # [可能需要修改参数】 设置的梅尔频谱的shape
             test_sounds = d['data'].numpy().reshape((-1, 128, 128, 1))
             test_labels = d['label']
 
