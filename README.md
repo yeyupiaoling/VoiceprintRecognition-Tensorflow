@@ -42,7 +42,7 @@ pip install pydub
 # 创建数据
 本教程笔者使用的是[Free ST Chinese Mandarin Corpus数据集](http://www.openslr.org/38)，这个数据集一共有855个人的语音数据，有102600条语音数据。如果读者有其他更好的数据集，可以混合在一起使用。
 
-如何已经读过笔者[《基于Tensorflow实现声音分类》](https://blog.doiduoyi.com/articles/2020/04/23/1587654005620.html)这篇文章，应该知道语音数据小而多，最好的方法就是把这些音频文件生成TFRecord，加快训练速度。所以创建create_data.py用于生成TFRecord文件。
+如何已经读过笔者[《基于Tensorflow实现声音分类》](https://blog.doiduoyi.com/articles/2020/04/23/1587654005620.html)这篇文章，应该知道语音数据小而多，最好的方法就是把这些音频文件生成TFRecord，加快训练速度。所以创建`create_data.py`用于生成TFRecord文件。
 
 首先是创建一个数据列表，数据列表的格式为`<语音文件路径\t语音分类标签>`，创建这个列表主要是方便之后的读取，也是方便读取使用其他的语音数据集，不同的语音数据集，可以通过编写对应的生成数据列表的函数，把这些数据集都写在同一个数据列表中，这样就可以在下一步直接生成TFRecord文件了。
 ```python
