@@ -42,7 +42,7 @@ def load_audio_db(audio_db_path):
     for audio in audios:
         path = os.path.join(audio_db_path, audio)
         name = audio[:-4]
-        feature = infer(path)
+        feature = infer(path)[0]
         person_name.append(name)
         person_feature.append(feature)
         print("Loaded %s audio." % name)
@@ -51,7 +51,7 @@ def load_audio_db(audio_db_path):
 def recognition(path):
     name = ''
     pro = 0
-    feature = infer(path)
+    feature = infer(path)[0]
     for i, person_f in enumerate(person_feature):
         dist = np.dot(feature, person_f) / (np.linalg.norm(feature) * np.linalg.norm(person_f))
         if dist > pro:
@@ -98,9 +98,9 @@ if __name__ == '__main__':
 
             # 识别对比音频库的音频
             name, p = recognition(WAVE_OUTPUT_FILENAME)
-            if p > 0.9:
+            if p > 0.7:
                 print("识别说话的为：%s，相似度为：%f" % (name, p))
             else:
                 print("音频库没有该用户的语音")
-        except:
-            pass
+        except Exception as e:
+            print(e)

@@ -382,7 +382,7 @@ if __name__ == '__main__':
 
             # 识别对比音频库的音频
             name, p = recognition(WAVE_OUTPUT_FILENAME)
-            if p > 0.9:
+            if p > 0.7:
                 print("识别说话的为：%s，相似度为：%f" % (name, p))
             else:
                 print("音频库没有该用户的语音")
