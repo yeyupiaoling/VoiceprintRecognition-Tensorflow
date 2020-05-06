@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 
 
-layer_name = 'dropout'
+layer_name = 'dropout_1'
 model = tf.keras.models.load_model('models/resnet.h5')
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
@@ -31,8 +31,8 @@ def infer(audio_path):
 
 if __name__ == '__main__':
     # 要预测的两个人的音频文件
-    person1 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00011A0001.wav'
-    person2 = 'dataset/ST-CMDS-20170001_1-OS/20170001P00011I0081.wav'
+    person1 = 'audio_db/wanwen1.wav'
+    person2 = 'audio_db/wanwen2.wav'
     feature1 = infer(person1)[0]
     feature2 = infer(person2)[0]
     # 对角余弦值

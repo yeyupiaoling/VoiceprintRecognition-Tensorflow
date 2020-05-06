@@ -5,6 +5,7 @@ import numpy as np
 class_dim = 855
 EPOCHS = 500
 BATCH_SIZE=32
+init_model = None
 
 model = tf.keras.models.Sequential([
     tf.keras.applications.ResNet50(include_top=False, weights=None, input_shape=(128, None, 1)),
@@ -20,6 +21,9 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
 
 train_dataset = reader.train_reader_tfrecord('dataset/train.tfrecord', EPOCHS, batch_size=BATCH_SIZE)
 test_dataset = reader.test_reader_tfrecord('dataset/test.tfrecord', batch_size=BATCH_SIZE)
+
+if init_model:
+    model.load_weights(init_model)
 
 for batch_id, data in enumerate(train_dataset):
     # [可能需要修改参数】 设置的梅尔频谱的shape
@@ -67,3 +71,4 @@ for batch_id, data in enumerate(train_dataset):
 
         # 保存模型
         model.save(filepath='models/resnet.h5')
+        model.save_weights(filepath='models/model_weights.h5')
