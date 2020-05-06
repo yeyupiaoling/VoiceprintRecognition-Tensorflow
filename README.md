@@ -189,11 +189,11 @@ train_dataset = reader.train_reader_tfrecord('dataset/train.tfrecord', EPOCHS, b
 test_dataset = reader.test_reader_tfrecord('dataset/test.tfrecord', batch_size=BATCH_SIZE)
 ```
 
-开始执行训练，要注意的是在创建TFRecord文件时，已经把音频数据的梅尔频谱转换为一维list了，所以在数据输入到模型前，需要把数据reshape为之前的shape，操作方式为`reshape((BATCH_SIZE, 128, 128, 1))`。要注意的是如果读者使用了其他长度的音频，需要根据梅尔频谱的shape修改，训练数据和测试数据都需要做同样的处理。每训练200个batch执行一次测试和保存模型。
+开始执行训练，要注意的是在创建TFRecord文件时，已经把音频数据的梅尔频谱转换为一维list了，所以在数据输入到模型前，需要把数据reshape为之前的shape，操作方式为`reshape((-1, 128, 128, 1))`。要注意的是如果读者使用了其他长度的音频，需要根据梅尔频谱的shape修改，训练数据和测试数据都需要做同样的处理。每训练200个batch执行一次测试和保存模型。
 ```python
 for batch_id, data in enumerate(train_dataset):
     # [可能需要修改参数】 设置的梅尔频谱的shape
-    sounds = data['data'].numpy().reshape((BATCH_SIZE, 128, 128, 1))
+    sounds = data['data'].numpy().reshape((-1, 128, 128, 1))
     labels = data['label']
     # 执行训练
     with tf.GradientTape() as tape:

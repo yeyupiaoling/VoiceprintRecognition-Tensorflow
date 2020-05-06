@@ -23,7 +23,7 @@ test_dataset = reader.test_reader_tfrecord('dataset/test.tfrecord', batch_size=B
 
 for batch_id, data in enumerate(train_dataset):
     # [可能需要修改参数】 设置的梅尔频谱的shape
-    sounds = data['data'].numpy().reshape((BATCH_SIZE, 128, 128, 1))
+    sounds = data['data'].numpy().reshape((-1, 128, 128, 1))
     labels = data['label']
     # 执行训练
     with tf.GradientTape() as tape:
