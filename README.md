@@ -167,16 +167,18 @@ def test_reader_tfrecord(data_path, batch_size):
 
 
 # 训练模型
-创建`train.py`开始训练模型，搭建一个ResNet50分类模型，`input_shape`设置为`(128, None, 1))`主要是为了适配其他音频长度的输入和预测是任意大小的输入。`class_dim`为分类的总数，Free ST Chinese Mandarin Corpus数据集一共有855个人的语音数据，所以这里分类总数为855。
+创建`train.py`开始训练模型，搭建一个ResNet50分类模型，`input_shape`设置为`(128, None, 1))`主要是为了适配其他音频长度的输入和预测是任意大小的输入。`class_dim`为分类的总数，Free ST Chinese Mandarin Corpus数据集一共有855个人的语音数据，所以这里分类总数为855，可以使用之前训练过的权重初始化模型，下载看文章最后。
 ```python
 class_dim = 855
 EPOCHS = 500
 BATCH_SIZE=32
+init_model = "models/model_weights.h5"
 
 model = tf.keras.models.Sequential([
-    tf.keras.applications.ResNet50(include_top=False, weights=None, input_shape=(128, None, 1)),
-    tf.keras.layers.GlobalMaxPooling2D(),
+    tf.keras.applications.ResNet50V2(include_top=False, weights=None, input_shape=(128, None, 1)),
+    tf.keras.layers.ActivityRegularization(l2=0.5),
     tf.keras.layers.Dropout(rate=0.5),
+    tf.keras.layers.GlobalMaxPooling2D(),
     tf.keras.layers.Dense(units=class_dim, activation=tf.nn.softmax)
 ])
 
@@ -187,9 +189,12 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
 
 train_dataset = reader.train_reader_tfrecord('dataset/train.tfrecord', EPOCHS, batch_size=BATCH_SIZE)
 test_dataset = reader.test_reader_tfrecord('dataset/test.tfrecord', batch_size=BATCH_SIZE)
+
+if init_model:
+    model.load_weights(init_model)
 ```
 
-开始执行训练，要注意的是在创建TFRecord文件时，已经把音频数据的梅尔频谱转换为一维list了，所以在数据输入到模型前，需要把数据reshape为之前的shape，操作方式为`reshape((-1, 128, 128, 1))`。要注意的是如果读者使用了其他长度的音频，需要根据梅尔频谱的shape修改，训练数据和测试数据都需要做同样的处理。每训练200个batch执行一次测试和保存模型。
+开始执行训练，要注意的是在创建TFRecord文件时，已经把音频数据的梅尔频谱转换为一维list了，所以在数据输入到模型前，需要把数据reshape为之前的shape，操作方式为`reshape((-1, 128, 128, 1))`。要注意的是如果读者使用了其他长度的音频，需要根据梅尔频谱的shape修改，训练数据和测试数据都需要做同样的处理。每训练200个batch执行一次测试和保存模型，包括预测模型和网络权重。
 ```python
 for batch_id, data in enumerate(train_dataset):
     # [可能需要修改参数】 设置的梅尔频谱的shape
@@ -237,13 +242,14 @@ for batch_id, data in enumerate(train_dataset):
 
         # 保存模型
         model.save(filepath='models/resnet.h5')
+        model.save_weights(filepath='models/model_weights.h5')
 ```
 
 # 声纹对比
 下面开始实现声纹对比，创建`infer_contrast.py`程序，在加载模型时，不要直接加载整个模型，而是加载模型的最后分类层的上一层，这样就可以获取到语音的特征数据。通过使用[netron](https://github.com/lutzroeder/netron)查看每一层的输入和输出的名称。
 
 ```python
-layer_name = 'dropout'
+layer_name = 'global_max_pooling2d'
 model = tf.keras.models.load_model('models/resnet.h5')
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 ```
@@ -288,7 +294,7 @@ if __name__ == '__main__':
 # 声纹识别
 在上面的声纹对比的基础上，我们创建`infer_recognition.py`实现声纹识别。同样是使用上面声纹对比的数据加载函数和预测函数，通过这两个同样获取语音的特征数据。
 ```python
-layer_name = 'dropout'
+layer_name = 'global_max_pooling2d'
 model = tf.keras.models.load_model('models/resnet.h5')
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
@@ -389,5 +395,13 @@ if __name__ == '__main__':
         except:
             pass
 ```
+
+# 模型
+
+| 模型名称 | 所用数据集 | 下载地址 |
+| :---: | :---: | :---: |
+| 网络权重 | ST-CMDS-20170001_1-OS | [点击下载](https://) |
+| 网络预测模型 | ST-CMDS-20170001_1-OS | [点击下载](https://) |
+| 网络预测模型 | 更大数据集 | [点击下载](https://) |
 
 **Github地址：** [https://github.com/yeyupiaoling/VoiceprintRecognition_Tensorflow](https://github.com/yeyupiaoling/VoiceprintRecognition_Tensorflow)
