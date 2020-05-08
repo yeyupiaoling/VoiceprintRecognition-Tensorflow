@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 
 
-layer_name = 'dropout'
+layer_name = 'global_max_pooling2d'
 model = tf.keras.models.load_model('models/resnet.h5')
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
