@@ -75,15 +75,19 @@ def get_data_list(audio_path, list_path):
 
     sound_sum = 0
     s = set()
+    label = {}
     for file in files:
         if '.wav' not in file:
             continue
-        s.add(file[:15])
+        name = file[:15]
+        if name not in s:
+            label[name] = len(s)
+            s.add(name)
         sound_path = os.path.join(audio_path, file)
         if sound_sum % 100 == 0:
-            f_test.write('%s\t%d\n' % (sound_path.replace('\\', '/'), len(s) - 1))
+            f_test.write('%s\t%d\n' % (sound_path.replace('\\', '/'), label[name]))
         else:
-            f_train.write('%s\t%d\n' % (sound_path.replace('\\', '/'), len(s) - 1))
+            f_train.write('%s\t%d\n' % (sound_path.replace('\\', '/'), label[name]))
         sound_sum += 1
 
     f_test.close()
