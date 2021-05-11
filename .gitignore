@@ -2,5 +2,4 @@
 __pycache__/
 dataset/
 models/
-audio_db/
-infer_audio.wav
+log/

@@ -1,37 +1,39 @@
 import os
 import wave
-import librosa
+import argparse
+import functools
 import numpy as np
 import pyaudio
 import tensorflow as tf
 from tensorflow.keras.models import Model
 
+from utils.reader import load_audio
+from utils.utility import add_arguments, print_arguments
 
-layer_name = 'global_max_pooling2d'
-model = tf.keras.models.load_model('models/resnet.h5')
+parser = argparse.ArgumentParser(description=__doc__)
+add_arg = functools.partial(add_arguments, argparser=parser)
+add_arg('input_shape',      str,    '(1, 257, 257)',          '数据输入的形状')
+add_arg('threshold',        float,   0.7,                     '判断是否为同一个人的阈值')
+add_arg('model_path',       str,    'models/infer/model',     '预测模型的路径')
+args = parser.parse_args()
+
+print_arguments(args)
+
+# 加载模型，根据名称获取分类输出的上一层特征输出
+layer_name = 'feature_output'
+model = tf.keras.models.load_model(args.model_path)
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
+
+# 获取均值和标准值
+input_shape = eval(args.input_shape)
 
 person_feature = []
 person_name = []
 
 
-# 读取音频数据
-def load_data(data_path):
-    wav, sr = librosa.load(data_path, sr=16000)
-    intervals = librosa.effects.split(wav, top_db=20)
-    wav_output = []
-    for sliced in intervals:
-        wav_output.extend(wav[sliced[0]:sliced[1]])
-    if len(wav_output) < 8000:
-        raise Exception("有效音频小于0.5s")
-    wav_output = np.array(wav_output)
-    ps = librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).astype(np.float32)
-    ps = ps[np.newaxis, ..., np.newaxis]
-    return ps
-
-
+# 预测音频
 def infer(audio_path):
-    data = load_data(audio_path)
+    data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
     feature = intermediate_layer_model.predict(data)
     return feature
 
@@ -68,7 +70,7 @@ if __name__ == '__main__':
     CHANNELS = 1
     RATE = 16000
     RECORD_SECONDS = 3
-    WAVE_OUTPUT_FILENAME = "infer_audio.wav"
+    WAVE_OUTPUT_FILENAME = "dataset/temp.wav"
 
     # 打开录音
     p = pyaudio.PyAudio()
@@ -98,7 +100,7 @@ if __name__ == '__main__':
 
             # 识别对比音频库的音频
             name, p = recognition(WAVE_OUTPUT_FILENAME)
-            if p > 0.7:
+            if p > args.threshold:
                 print("识别说话的为：%s，相似度为：%f" % (name, p))
             else:
                 print("音频库没有该用户的语音")

@@ -1,100 +1,97 @@
+import json
 import os
-import random
-
+from random import sample
+from tqdm import tqdm
 import librosa
 import numpy as np
-import tensorflow as tf
-from tqdm import tqdm
-
-
-# 获取浮点数组
-def _float_feature(value):
-    if not isinstance(value, list):
-        value = [value]
-    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
-
-
-# 获取整型数据
-def _int64_feature(value):
-    if not isinstance(value, list):
-        value = [value]
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
-
-
-# 把数据添加到TFRecord中
-def data_example(data, label):
-    feature = {
-        'data': _float_feature(data),
-        'label': _int64_feature(label),
-    }
-    return tf.train.Example(features=tf.train.Features(feature=feature))
-
-
-# 开始创建tfrecord数据
-def create_data_tfrecord(data_list_path, save_path):
-    with open(data_list_path, 'r') as f:
-        data = f.readlines()
-    with tf.io.TFRecordWriter(save_path) as writer:
-        for d in tqdm(data):
-            try:
-                path, label = d.replace('\n', '').split('\t')
-                wav, sr = librosa.load(path, sr=16000)
-                intervals = librosa.effects.split(wav, top_db=20)
-                wav_output = []
-                # [可能需要修改参数] 音频长度 16000 * 秒数
-                wav_len = int(16000 * 2.04)
-                for sliced in intervals:
-                    wav_output.extend(wav[sliced[0]:sliced[1]])
-                for i in range(20):
-                    # 裁剪过长的音频，过短的补0
-                    if len(wav_output) > wav_len:
-                        l = len(wav_output) - wav_len
-                        r = random.randint(0, l)
-                        wav_output = wav_output[r:wav_len + r]
-                    else:
-                        wav_output.extend(np.zeros(shape=[wav_len - len(wav_output)], dtype=np.float32))
-                    wav_output = np.array(wav_output)
-                    # 转成梅尔频谱
-                    ps = librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).reshape(-1).tolist()
-                    # [可能需要修改参数] 梅尔频谱shape ，librosa.feature.melspectrogram(y=wav_output, sr=sr, hop_length=256).shape
-                    if len(ps) != 128 * 128: continue
-                    tf_example = data_example(ps, int(label))
-                    writer.write(tf_example.SerializeToString())
-                    if len(wav_output) <= wav_len:
-                        break
-            except Exception as e:
-                print(e)
+from pydub import AudioSegment
 
 
 # 生成数据列表
-def get_data_list(audio_path, list_path):
-    files = os.listdir(audio_path)
+def get_data_list(infodata_path, list_path, zhvoice_path):
+    with open(infodata_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
 
     f_train = open(os.path.join(list_path, 'train_list.txt'), 'w')
     f_test = open(os.path.join(list_path, 'test_list.txt'), 'w')
 
     sound_sum = 0
-    s = set()
-    label = {}
-    for file in files:
-        if '.wav' not in file:
+    speakers = []
+    speakers_dict = {}
+    for line in tqdm(lines):
+        line = json.loads(line.replace('\n', ''))
+        duration_ms = line['duration_ms']
+        if duration_ms < 1300:
             continue
-        name = file[:15]
-        if name not in s:
-            label[name] = len(s)
-            s.add(name)
-        sound_path = os.path.join(audio_path, file)
-        if sound_sum % 100 == 0:
-            f_test.write('%s\t%d\n' % (sound_path.replace('\\', '/'), label[name]))
+        speaker = line['speaker']
+        if speaker not in speakers:
+            speakers_dict[speaker] = len(speakers)
+            speakers.append(speaker)
+        label = speakers_dict[speaker]
+        sound_path = os.path.join(zhvoice_path, line['index'])
+        save_path = "%s.wav" % sound_path[:-4]
+        if not os.path.exists(save_path):
+            try:
+                wav = AudioSegment.from_mp3(sound_path)
+                wav.export(save_path, format="wav")
+                os.remove(sound_path)
+            except Exception as e:
+                print('数据出错：%s, 信息：%s' % (sound_path, e))
+                continue
+        if sound_sum % 200 == 0:
+            f_test.write('%s\t%d\n' % (save_path.replace('\\', '/'), label))
         else:
-            f_train.write('%s\t%d\n' % (sound_path.replace('\\', '/'), label[name]))
+            f_train.write('%s\t%d\n' % (save_path.replace('\\', '/'), label))
         sound_sum += 1
 
     f_test.close()
     f_train.close()
 
 
+# 计算均值和标准值
+def compute_mean_std(data_list_path='dataset/train_list.txt', output_path='dataset/mean_std.npy', win_length=400, sr=16000, hop_length=160, n_fft=512, spec_len=257):
+    with open(data_list_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    lines = sample(lines, 5000)
+    data = None
+    for line in tqdm(lines):
+        audio_path, _ = line.split('\t')
+        wav, sr_ret = librosa.load(audio_path, sr=sr)
+        extended_wav = np.append(wav, wav[::-1])
+        linear = librosa.stft(extended_wav, n_fft=n_fft, win_length=win_length, hop_length=hop_length)
+        linear_T = linear.T
+        mag, _ = librosa.magphase(linear_T)
+        mag_T = mag.T
+        spec_mag = mag_T[:, :spec_len]
+        if data is None:
+            data = np.array(spec_mag, dtype='float32')
+        else:
+            data = np.vstack((data, spec_mag))
+    mean = np.mean(data, 0, keepdims=True)
+    std = np.std(data, 0, keepdims=True)
+    np.save(output_path, [mean, std])
+
+
+# 删除错误音频
+def remove_error_audio(data_list_path):
+    with open(data_list_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    lines1 = []
+    for line in tqdm(lines):
+        audio_path, _ = line.split('\t')
+        try:
+            spec_mag = load_audio(audio_path)
+            lines1.append(line)
+        except Exception as e:
+            print(audio_path)
+            print(e)
+    with open(data_list_path, 'w', encoding='utf-8') as f:
+        for line in lines1:
+            f.write(line)
+
+
 if __name__ == '__main__':
-    get_data_list('dataset/ST-CMDS-20170001_1-OS', 'dataset')
-    create_data_tfrecord('dataset/train_list.txt', 'dataset/train.tfrecord')
-    create_data_tfrecord('dataset/test_list.txt', 'dataset/test.tfrecord')
+    get_data_list('dataset/zhvoice/text/infodata.json', 'dataset', 'dataset/zhvoice')
+    compute_mean_std('dataset/train_list.txt')
+    remove_error_audio('dataset/train_list.txt')
+    remove_error_audio('dataset/test_list.txt')
