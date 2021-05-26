@@ -1,10 +1,10 @@
 import json
 import os
-from random import sample
-from tqdm import tqdm
-import librosa
-import numpy as np
+
 from pydub import AudioSegment
+from tqdm import tqdm
+
+from utils.reader import load_audio
 
 
 # 生成数据列表
@@ -48,30 +48,6 @@ def get_data_list(infodata_path, list_path, zhvoice_path):
     f_train.close()
 
 
-# 计算均值和标准值
-def compute_mean_std(data_list_path='dataset/train_list.txt', output_path='dataset/mean_std.npy', win_length=400, sr=16000, hop_length=160, n_fft=512, spec_len=257):
-    with open(data_list_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-    lines = sample(lines, 5000)
-    data = None
-    for line in tqdm(lines):
-        audio_path, _ = line.split('\t')
-        wav, sr_ret = librosa.load(audio_path, sr=sr)
-        extended_wav = np.append(wav, wav[::-1])
-        linear = librosa.stft(extended_wav, n_fft=n_fft, win_length=win_length, hop_length=hop_length)
-        linear_T = linear.T
-        mag, _ = librosa.magphase(linear_T)
-        mag_T = mag.T
-        spec_mag = mag_T[:, :spec_len]
-        if data is None:
-            data = np.array(spec_mag, dtype='float32')
-        else:
-            data = np.vstack((data, spec_mag))
-    mean = np.mean(data, 0, keepdims=True)
-    std = np.std(data, 0, keepdims=True)
-    np.save(output_path, [mean, std])
-
-
 # 删除错误音频
 def remove_error_audio(data_list_path):
     with open(data_list_path, 'r', encoding='utf-8') as f:
@@ -92,6 +68,5 @@ def remove_error_audio(data_list_path):
 
 if __name__ == '__main__':
     get_data_list('dataset/zhvoice/text/infodata.json', 'dataset', 'dataset/zhvoice')
-    compute_mean_std('dataset/train_list.txt')
     remove_error_audio('dataset/train_list.txt')
     remove_error_audio('dataset/test_list.txt')

@@ -54,7 +54,7 @@ def train_reader(data_list_path, batch_size, spec_len=257):
     ds = tf.data.Dataset.from_generator(generator=lambda:data_generator(data_list_path, spec_len=spec_len),
                                         output_types=(tf.float32, tf.int64))
 
-    train_dataset = ds.shuffle(buffer_size=1000) \
+    train_dataset = ds.shuffle(buffer_size=100) \
         .batch(batch_size=batch_size) \
         .prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     return train_dataset

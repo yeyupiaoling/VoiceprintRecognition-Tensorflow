@@ -5,6 +5,7 @@ from utils import reader
 import argparse
 import functools
 from utils.models import Model
+from utils.ArcMargin import ArcNet
 from utils.utility import add_arguments, print_arguments
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -23,7 +24,7 @@ args = parser.parse_args()
 
 
 # 训练模型
-def train(model, train_dataset, loss_object, optimizer, epoch_id, train_loss_metrics, train_accuracy_metrics):
+def train(model, metric_fc, train_dataset, loss_object, optimizer, epoch_id, train_loss_metrics, train_accuracy_metrics):
     # 在下一个epoch开始时，重置评估指标
     train_loss_metrics.reset_states()
     train_accuracy_metrics.reset_states()
@@ -32,34 +33,38 @@ def train(model, train_dataset, loss_object, optimizer, epoch_id, train_loss_met
         sounds, labels = batch_data
         # 执行训练
         with tf.GradientTape() as tape:
-            predictions = model(batch_data, training=True)
+            feature = model(sounds)
+            predictions = metric_fc(feature, labels)
             # 获取损失值
-            reg_loss = tf.reduce_sum(model.losses) * args.reg_weight_decay
+            model_reg_loss = tf.reduce_sum(model.losses) * args.reg_weight_decay
+            metric_fc_reg_loss = tf.reduce_sum(metric_fc.losses) * args.reg_weight_decay
             pred_loss = loss_object(labels, predictions)
-            train_loss = pred_loss + reg_loss
+            train_loss = pred_loss + model_reg_loss + metric_fc_reg_loss
 
         # 更新梯度
-        gradients = tape.gradient(train_loss, model.trainable_variables)
+        trainable_variables = model.trainable_variables + metric_fc.trainable_variables
+        gradients = tape.gradient(train_loss, trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         # 计算平均损失值和准确率
         train_loss_metrics(train_loss)
         train_accuracy_metrics(labels, predictions)
         # 日志输出
-        if batch_id % 100 == 0:
+        if batch_id % 10 == 0:
             print("Epoch %d, Batch %d, Loss %f, Accuracy %f" % (
                 epoch_id, batch_id, train_loss_metrics.result(), train_accuracy_metrics.result()))
     return train_loss_metrics.result(), train_accuracy_metrics.result()
 
 
 # 评估模型
-def test(model, test_dataset, loss_object, test_loss_metrics, test_accuracy_metrics):
+def test(model, metric_fc, test_dataset, loss_object, test_loss_metrics, test_accuracy_metrics):
     # 在下一个epoch开始时，重置评估指标
     test_loss_metrics.reset_states()
     test_accuracy_metrics.reset_states()
     # 开始评估
     for batch_data in test_dataset:
         sounds, labels = batch_data
-        predictions = model(batch_data, training=True)
+        feature = model(sounds)
+        predictions = metric_fc(feature, labels)
         # 获取损失值
         reg_loss = tf.reduce_sum(model.losses) * args.reg_weight_decay
         pred_loss = loss_object(labels, predictions)
@@ -71,11 +76,12 @@ def test(model, test_dataset, loss_object, test_loss_metrics, test_accuracy_metr
 
 
 # 保存模型
-def save_model(model):
+def save_model(model, metric_fc):
     if not os.path.exists(args.save_model):
         os.makedirs(args.save_model)
     model.save(filepath=os.path.join(args.save_model, 'infer_model.h5'))
     model.save_weights(filepath=os.path.join(args.save_model, 'model_weights.h5'))
+    metric_fc.save_weights(filepath=os.path.join(args.save_model, 'metric_fc_weights.h5'))
 
 
 # 训练
@@ -83,15 +89,16 @@ def main():
     # 数据输入的形状
     input_shape = eval(args.input_shape)
     # 获取模型
-    model = Model(input_shape=input_shape, num_classes=args.num_classes, backbone_type='MobileNetV2')
+    model = Model(input_shape=input_shape, backbone_type='MobileNetV2', feature_dim=512)
+    metric_fc = ArcNet(feature_dim=512, n_classes=args.num_classes)
 
-    # 打印模型
-    # model.build(input_shape=input_shape)
-    # model.summary()
     # 定义损失函数
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
+    with open(args.train_list_path, 'r') as f:
+        lines = f.readlines()
+    epoch_step_sum = len(lines) / args.batch_size
     # 定义优化方法
-    boundaries = [10, 30, 70, 100]
+    boundaries = [10 * epoch_step_sum, 30 * epoch_step_sum, 70 * epoch_step_sum, 100 * epoch_step_sum]
     lr = [0.5 ** l * args.learning_rate for l in range(len(boundaries) + 1)]
     scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=boundaries, values=lr)
     optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
@@ -106,7 +113,8 @@ def main():
 
     # 加载预训练模型
     if args.pretrained_model is not None:
-        model.load_weights(args.pretrained_model)
+        model.load_weights(os.path.join(args.save_model, 'model_weights.h5'))
+        metric_fc.load_weights(os.path.join(args.save_model, 'metric_fc_weights.h5'))
 
     train_loss_metrics = tf.keras.metrics.Mean(name='train_loss')
     train_accuracy_metrics = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
@@ -120,14 +128,14 @@ def main():
     # 开始训练
     for epoch_id in range(args.num_epoch):
         # 训练模型
-        train_loss, train_accuracy = train(model, train_dataset, loss_object, optimizer, epoch_id, train_loss_metrics, train_accuracy_metrics)
+        train_loss, train_accuracy = train(model, metric_fc, train_dataset, loss_object, optimizer, epoch_id, train_loss_metrics, train_accuracy_metrics)
         # 记录数据
         with train_summary_writer.as_default():
             tf.summary.scalar('Loss', train_loss, step=epoch_id)
             tf.summary.scalar('Accuracy', train_accuracy, step=epoch_id)
 
         # 评估模型
-        test_loss, test_accuracy = test(model, test_dataset, loss_object, test_loss_metrics, test_accuracy_metrics)
+        test_loss, test_accuracy = test(model, metric_fc, test_dataset, loss_object, test_loss_metrics, test_accuracy_metrics)
         print('=================================================')
         print("Test %d, Loss %f, Accuracy %f" % (epoch_id, test_loss, test_accuracy))
         print('=================================================')
@@ -137,7 +145,7 @@ def main():
             tf.summary.scalar('Accuracy', test_accuracy, step=epoch_id)
 
         # 保存模型
-        # save_model(model)
+        # save_model(model, metric_fc)
 
 
 if __name__ == '__main__':

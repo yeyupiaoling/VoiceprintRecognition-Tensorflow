@@ -19,10 +19,8 @@ args = parser.parse_args()
 
 print_arguments(args)
 
-# 加载模型，根据名称获取分类输出的上一层特征输出
-layer_name = 'feature_output'
+# 加载模型
 model = tf.keras.models.load_model(args.model_path)
-intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
 # 获取均值和标准值
 input_shape = eval(args.input_shape)
@@ -34,7 +32,7 @@ person_name = []
 # 预测音频
 def infer(audio_path):
     data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
-    feature = intermediate_layer_model.predict(data)
+    feature = model.predict(data)
     return feature
 
 

@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 
-class ArcNet(tf.keras.layers.Layer):
-    def __init__(self, feature_dim, n_classes, s=30.0, m=0.50, regularizer=None, **kwargs):
+class ArcNet(tf.keras.Model):
+    def __init__(self, feature_dim, n_classes, s=64.0, m=0.50, regularizer=tf.keras.regularizers.l2(5e-4), **kwargs):
         super(ArcNet, self).__init__(**kwargs)
         self.n_classes = n_classes
         self.s = s
