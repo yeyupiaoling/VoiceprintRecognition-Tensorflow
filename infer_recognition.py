@@ -25,6 +25,10 @@ model = tf.keras.models.load_model(args.model_path)
 # 获取均值和标准值
 input_shape = eval(args.input_shape)
 
+# 打印模型
+model.build(input_shape=input_shape)
+model.summary()
+
 person_feature = []
 person_name = []
 
@@ -32,6 +36,7 @@ person_name = []
 # 预测音频
 def infer(audio_path):
     data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
+    data = data[np.newaxis, :]
     feature = model.predict(data)
     return feature
 

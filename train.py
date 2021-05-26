@@ -3,8 +3,10 @@ import os
 import tensorflow as tf
 from utils import reader
 import argparse
+from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
+from tensorflow.keras.applications import MobileNetV2, ResNet50
 import functools
-from utils.models import Model
+import numpy as np
 from utils.ArcMargin import ArcNet
 from utils.utility import add_arguments, print_arguments
 
@@ -12,11 +14,12 @@ parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
 add_arg('batch_size',       int,    16,                       '训练的批量大小')
 add_arg('num_epoch',        int,    200,                      '训练的轮数')
-add_arg('num_classes',      int,    3242,                     '分类的类别数量')
+add_arg('num_classes',      int,    10,                     '分类的类别数量')
 add_arg('learning_rate',    float,  1e-1,                     '初始学习率的大小')
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('train_list_path',  str,    'dataset/train_list.txt', '训练数据的数据列表路径')
 add_arg('test_list_path',   str,    'dataset/test_list.txt',  '测试数据的数据列表路径')
+add_arg('use_model',        str,    'MobileNetV2',            '所使用的模型，支持MobileNetV2, ResNet50')
 add_arg('save_model',       str,    'models/',                '模型保存的路径')
 add_arg('pretrained_model', str,    None,                     '预训练模型的路径，当为None则不使用预训练模型')
 add_arg('reg_weight_decay', float,  0.1,                      'weight decay for regression loss')
@@ -48,6 +51,7 @@ def train(model, metric_fc, train_dataset, loss_object, optimizer, epoch_id, tra
         # 计算平均损失值和准确率
         train_loss_metrics(train_loss)
         train_accuracy_metrics(labels, predictions)
+        save_model(model, metric_fc)
         # 日志输出
         if batch_id % 10 == 0:
             print("Epoch %d, Batch %d, Loss %f, Accuracy %f" % (
@@ -89,8 +93,20 @@ def main():
     # 数据输入的形状
     input_shape = eval(args.input_shape)
     # 获取模型
-    model = Model(input_shape=input_shape, backbone_type='MobileNetV2', feature_dim=512)
+    model = tf.keras.Sequential()
+    if args.use_model == 'MobileNetV2':
+        model.add(MobileNetV2(input_shape=input_shape, include_top=False, weights=None, pooling='max'))
+    else:
+        model.add(ResNet50(input_shape=input_shape, include_top=False, weights=None, pooling='max'))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+    model.add(Dense(512, kernel_regularizer=tf.keras.regularizers.l2(5e-4), bias_initializer='glorot_uniform'))
+    model.add(BatchNormalization())
     metric_fc = ArcNet(feature_dim=512, n_classes=args.num_classes)
+
+    # 打印模型
+    model.build(input_shape=input_shape)
+    model.summary()
 
     # 定义损失函数
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
@@ -114,7 +130,9 @@ def main():
     # 加载预训练模型
     if args.pretrained_model is not None:
         model.load_weights(os.path.join(args.save_model, 'model_weights.h5'))
+        metric_fc(tf.convert_to_tensor(np.random.random((1, 512)), dtype='float32'), tf.convert_to_tensor([0]))
         metric_fc.load_weights(os.path.join(args.save_model, 'metric_fc_weights.h5'))
+        print('加载预训练模型成功！')
 
     train_loss_metrics = tf.keras.metrics.Mean(name='train_loss')
     train_accuracy_metrics = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
@@ -145,7 +163,7 @@ def main():
             tf.summary.scalar('Accuracy', test_accuracy, step=epoch_id)
 
         # 保存模型
-        # save_model(model, metric_fc)
+        save_model(model, metric_fc)
 
 
 if __name__ == '__main__':
