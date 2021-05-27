@@ -1,6 +1,6 @@
 
 # 前言
-本章介绍如何使用Tensorflow实现简单的声纹识别模型，首先你需要熟悉音频分类，没有了解的可以查看这篇文章[《基于Tensorflow实现声音分类》](https://blog.doiduoyi.com/articles/1587654005620.html)。基于这个知识基础之上，我们训练一个声纹识别模型，通过这个模型我们可以识别说话的人是谁，可以应用在一些需要音频验证的项目。
+本章介绍如何使用Tensorflow实现简单的声纹识别模型，首先你需要熟悉音频分类，没有了解的可以查看这篇文章[《基于Tensorflow实现声音分类》](https://blog.doiduoyi.com/articles/1587654005620.html) 。基于这个知识基础之上，我们训练一个声纹识别模型，通过这个模型我们可以识别说话的人是谁，可以应用在一些需要音频验证的项目。
 
 
 # 模型下载
@@ -124,110 +124,133 @@ python create_data.py
     # 数据输入的形状
     input_shape = eval(args.input_shape)
     # 获取模型
-    model = tf.keras.models.Sequential([
-        tf.keras.applications.ResNet50V2(include_top=False, weights=None, input_shape=input_shape),
-        tf.keras.layers.GlobalAveragePooling2D(name='feature_output'),
-        tf.keras.layers.Dense(units=args.num_classes, activation=tf.nn.softmax)])
+    model = tf.keras.Sequential()
+    if args.use_model == 'MobileNetV2':
+        model.add(MobileNetV2(input_shape=input_shape, include_top=False, weights=None, pooling='max'))
+    else:
+        model.add(ResNet50V2(input_shape=input_shape, include_top=False, weights=None, pooling='max'))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+    model.add(Dense(512, kernel_regularizer=tf.keras.regularizers.l2(5e-4), bias_initializer='glorot_uniform'))
+    model.add(BatchNormalization())
+    metric_fc = ArcNet(feature_dim=512, n_classes=args.num_classes)
 
     # 打印模型
+    model.build(input_shape=input_shape)
     model.summary()
 
+    # 定义损失函数
+    loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
+    with open(args.train_list_path, 'r') as f:
+        lines = f.readlines()
+    epoch_step_sum = len(lines) / args.batch_size
     # 定义优化方法
-    optimizer = tf.keras.optimizers.Adam(learning_rate=args.learning_rate)
+    boundaries = [10 * epoch_step_sum, 30 * epoch_step_sum, 70 * epoch_step_sum, 100 * epoch_step_sum]
+    lr = [0.5 ** l * args.learning_rate for l in range(len(boundaries) + 1)]
+    scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=boundaries, values=lr)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
 
     # 获取训练和测试数据
     train_dataset = reader.train_reader(data_list_path=args.train_list_path,
                                         batch_size=args.batch_size,
-                                        num_workers=args.num_workers,
                                         spec_len=input_shape[1])
     test_dataset = reader.test_reader(data_list_path=args.test_list_path,
                                       batch_size=args.batch_size,
-                                      num_workers=args.num_workers,
                                       spec_len=input_shape[1])
 
     # 加载预训练模型
     if args.pretrained_model is not None:
-        model.load_weights(args.pretrained_model)
+        model.load_weights(os.path.join(args.save_model, 'model_weights.h5'))
+        metric_fc(tf.convert_to_tensor(np.random.random((1, 512)), dtype='float32'), tf.convert_to_tensor([0]))
+        metric_fc.load_weights(os.path.join(args.save_model, 'metric_fc_weights.h5'))
+        print('加载预训练模型成功！')
 ```
 
 开始执行训练，使用的损失函数为交叉熵损失函数，每训练200个batch执行一次测试和保存模型，包括预测模型和网络权重。
 ```python
-   # 开始训练
-    for epoch_id in range(args.num_epoch):
-        for batch_id, (sounds, labels) in enumerate(train_dataset):
-            # 执行训练
-            with tf.GradientTape() as tape:
-                predictions = model(sounds)
-                # 获取损失值
-                train_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, predictions)
-                train_loss = tf.reduce_mean(train_loss)
-                # 获取准确率
-                train_accuracy = tf.keras.metrics.sparse_categorical_accuracy(labels, predictions)
-                train_accuracy = np.sum(train_accuracy.numpy()) / len(train_accuracy.numpy())
+def train(model, metric_fc, train_dataset, loss_object, optimizer, epoch_id, train_loss_metrics, train_accuracy_metrics):
+    # 在下一个epoch开始时，重置评估指标
+    train_loss_metrics.reset_states()
+    train_accuracy_metrics.reset_states()
+    # 开始训练
+    for batch_id, batch_data in enumerate(train_dataset):
+        sounds, labels = batch_data
+        # 执行训练
+        with tf.GradientTape() as tape:
+            feature = model(sounds)
+            predictions = metric_fc(feature, labels)
+            # 获取损失值
+            model_reg_loss = tf.reduce_sum(model.losses) * args.reg_weight_decay
+            metric_fc_reg_loss = tf.reduce_sum(metric_fc.losses) * args.reg_weight_decay
+            pred_loss = loss_object(labels, predictions)
+            train_loss = pred_loss + model_reg_loss + metric_fc_reg_loss
 
-            # 更新梯度
-            gradients = tape.gradient(train_loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-
-            if batch_id % 100 == 0:
-                print("Epoch %d, Batch %d, Loss %f, Accuracy %f" % (epoch_id, batch_id, train_loss.numpy(), train_accuracy))
-
-        # 评估模型
-        test_loss, test_accuracy = test(model, test_dataset)
-        print('=================================================')
-        print("Test %d, Loss %f, Accuracy %f" % (epoch_id, test_loss, test_accuracy))
-        print('=================================================')
-
-        # 保存模型
-        save_model(model)
+        # 更新梯度
+        trainable_variables = model.trainable_variables + metric_fc.trainable_variables
+        gradients = tape.gradient(train_loss, trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        # 计算平均损失值和准确率
+        train_loss_metrics(train_loss)
+        train_accuracy_metrics(labels, predictions)
+        save_model(model, metric_fc)
+        # 日志输出
+        if batch_id % 10 == 0:
+            print("Epoch %d, Batch %d, Loss %f, Accuracy %f" % (
+                epoch_id, batch_id, train_loss_metrics.result(), train_accuracy_metrics.result()))
+    return train_loss_metrics.result(), train_accuracy_metrics.result()
 ```
 
 在每次训练结束之后，执行一次模型评估，使用测试集测试模型的准确率。然后并保存一次模型，分别保存了整个模型和参数，以及单独保存模型参数用于之后昨晚 预训练模型。
 ```python
-# 评估模型
-def test(model, test_dataset):
-    test_losses = list()
-    test_accuracies = list()
-    for sounds, labels in test_dataset:
-        test_result = model(sounds)
+def test(model, metric_fc, test_dataset, loss_object, test_loss_metrics, test_accuracy_metrics):
+    # 在下一个epoch开始时，重置评估指标
+    test_loss_metrics.reset_states()
+    test_accuracy_metrics.reset_states()
+    # 开始评估
+    for batch_data in test_dataset:
+        sounds, labels = batch_data
+        feature = model(sounds)
+        predictions = metric_fc(feature, labels)
         # 获取损失值
-        test_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, test_result)
-        test_loss = tf.reduce_mean(test_loss)
-        test_losses.append(test_loss.numpy())
-        # 获取准确率
-        test_accuracy = tf.keras.metrics.sparse_categorical_accuracy(labels, test_result)
-        test_accuracy = np.sum(test_accuracy.numpy()) / len(test_accuracy.numpy())
-        test_accuracies.append(test_accuracy)
-    return sum(test_losses) / len(test_losses), sum(test_accuracies) / len(test_accuracies)
+        reg_loss = tf.reduce_sum(model.losses) * args.reg_weight_decay
+        pred_loss = loss_object(labels, predictions)
+        test_loss = pred_loss + reg_loss
+        # 计算平均损失值和准确率
+        test_loss_metrics(test_loss)
+        test_accuracy_metrics(labels, predictions)
+    return test_loss_metrics.result(), test_accuracy_metrics.result()
 
 
 # 保存模型
-def save_model(model):
+def save_model(model, metric_fc):
     if not os.path.exists(args.save_model):
         os.makedirs(args.save_model)
     model.save(filepath=os.path.join(args.save_model, 'infer_model.h5'))
     model.save_weights(filepath=os.path.join(args.save_model, 'model_weights.h5'))
+    metric_fc.save_weights(filepath=os.path.join(args.save_model, 'metric_fc_weights.h5'))
 ```
 
 # 声纹对比
 下面开始实现声纹对比，创建`infer_contrast.py`程序，在加载模型时，不要直接加载整个模型，而是加载模型的最后分类层的上一层，也就是我们定义名称为`feature_output`的池化层，这样就可以获取到语音的特征数据。这里顺便介绍个工具，通过使用[netron](https://github.com/lutzroeder/netron)查看每一层的输入和输出的名称。
 
 ```python
-# 加载模型，根据名称获取分类输出的上一层特征输出
-layer_name = 'feature_output'
+# 加载模型
 model = tf.keras.models.load_model(args.model_path)
-intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
 # 获取均值和标准值
 input_shape = eval(args.input_shape)
+
+# 打印模型
+model.build(input_shape=input_shape)
+model.summary()
 
 
 # 预测音频
 def infer(audio_path):
     data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
-    feature = intermediate_layer_model.predict(data)
-    return feature[0]
-
+    data = data[np.newaxis, :]
+    feature = model.predict(data)
+    return feature
 ```
 
 有了上面的`infer()`预测函数之后，在这个加载数据函数中并没有限定输入音频的大小，但是裁剪静音后的音频不能小于1.3秒，这样就可以输入任意长度的音频。执行预测之后数据的是语音的特征值。使用预测函数，我们输入两个语音，通过预测函数获取他们的特征数据，使用这个特征数据可以求他们的对角余弦值，得到的结果可以作为他们相识度。对于这个相识度的阈值，读者可以根据自己项目的准确度要求进行修改。
@@ -247,13 +270,15 @@ if __name__ == '__main__':
 # 声纹识别
 在上面的声纹对比的基础上，我们创建`infer_recognition.py`实现声纹识别。同样是使用上面声纹对比的预测函数`infer()`，通过这两个同样获取语音的特征数据。
 ```python
-# 加载模型，根据名称获取分类输出的上一层特征输出
-layer_name = 'feature_output'
+# 加载模型
 model = tf.keras.models.load_model(args.model_path)
-intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
 
 # 获取均值和标准值
 input_shape = eval(args.input_shape)
+
+# 打印模型
+model.build(input_shape=input_shape)
+model.summary()
 
 person_feature = []
 person_name = []
@@ -262,7 +287,8 @@ person_name = []
 # 预测音频
 def infer(audio_path):
     data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
-    feature = intermediate_layer_model.predict(data)
+    data = data[np.newaxis, :]
+    feature = model.predict(data)
     return feature
 ```
 
