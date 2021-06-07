@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
 add_arg('batch_size',       int,    16,                       '训练的批量大小')
 add_arg('num_epoch',        int,    200,                      '训练的轮数')
-add_arg('num_classes',      int,    10,                     '分类的类别数量')
+add_arg('num_classes',      int,    3242,                     '分类的类别数量')
 add_arg('learning_rate',    float,  1e-1,                     '初始学习率的大小')
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('train_list_path',  str,    'dataset/train_list.txt', '训练数据的数据列表路径')
@@ -83,10 +83,10 @@ def main():
         lines = f.readlines()
     epoch_step_sum = int(len(lines) / args.batch_size)
     # 定义优化方法
-    boundaries = [10 * epoch_step_sum, 30 * epoch_step_sum, 70 * epoch_step_sum, 100 * epoch_step_sum]
-    lr = [0.5 ** l * args.learning_rate for l in range(len(boundaries) + 1)]
+    boundaries = [10 * i * epoch_step_sum for i in range(1, args.num_epoch // 10, 1)]
+    lr = [0.1 ** l * args.learning_rate for l in range(len(boundaries) + 1)]
     scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=boundaries, values=lr)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=scheduler, momentum=0.9)
 
     # 获取训练和测试数据
     train_dataset = reader.train_reader(data_list_path=args.train_list_path,
