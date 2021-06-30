@@ -14,7 +14,6 @@ class ArcLoss(tf.keras.losses.Loss):
         self.sin_m = tf.math.sin(self.margin)
         self.mm = tf.multiply(self.sin_m, self.margin)
 
-    # @tf.function
     def call(self, cos_theta, labels):
         sin_theta = tf.math.sqrt(1 - tf.math.square(cos_theta))
         cos_theta_m = tf.subtract(cos_theta * self.cos_m, sin_theta * self. sin_m)
@@ -22,8 +21,7 @@ class ArcLoss(tf.keras.losses.Loss):
         one_hot = tf.one_hot(tf.cast(labels, tf.int32), depth=self.num_classes)
         logits = tf.where(one_hot == 1., cos_theta_m, cos_theta)
         logits = tf.multiply(logits, self.scale)
-        logits = tf.nn.softmax(logits)
-        losses = tf.keras.losses.sparse_categorical_crossentropy(labels, logits)
+        losses = tf.nn.softmax_cross_entropy_with_logits(one_hot, logits)
         return losses
 
     def get_config(self):

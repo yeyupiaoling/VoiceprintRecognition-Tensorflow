@@ -1,3 +1,5 @@
+import random
+
 import tensorflow as tf
 import librosa
 import numpy as np
@@ -43,6 +45,7 @@ def load_audio(audio_path, mode='train', win_length=400, sr=16000, hop_length=16
 def data_generator(data_list_path, spec_len=257):
     with open(data_list_path, 'r') as f:
         lines = f.readlines()
+        random.shuffle(lines)
     for line in lines:
         audio_path, label = line.replace('\n', '').split('\t')
         spec_mag = load_audio(audio_path, mode='train', spec_len=spec_len)
@@ -54,7 +57,7 @@ def train_reader(data_list_path, batch_size, num_epoch, spec_len=257):
     ds = tf.data.Dataset.from_generator(generator=lambda:data_generator(data_list_path, spec_len=spec_len),
                                         output_types=(tf.float32, tf.int64))
 
-    train_dataset = ds.shuffle(buffer_size=100) \
+    train_dataset = ds.shuffle(buffer_size=1000) \
         .batch(batch_size=batch_size) \
         .repeat(num_epoch) \
         .prefetch(buffer_size=tf.data.experimental.AUTOTUNE)

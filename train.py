@@ -5,7 +5,7 @@ import shutil
 from datetime import datetime
 
 import tensorflow as tf
-from tensorflow.keras.applications import MobileNetV2, ResNet50V2
+from tensorflow.keras.applications import ResNet50V2
 from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
 
 from utils import reader
@@ -16,7 +16,7 @@ from utils.utility import add_arguments, print_arguments
 parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
 add_arg('batch_size',       int,    16,                       '训练的批量大小')
-add_arg('num_epoch',        int,    200,                      '训练的轮数')
+add_arg('num_epoch',        int,    50,                       '训练的轮数')
 add_arg('num_classes',      int,    3242,                     '分类的类别数量')
 add_arg('learning_rate',    float,  1e-3,                     '初始学习率的大小')
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
@@ -24,7 +24,6 @@ add_arg('train_list_path',  str,    'dataset/train_list.txt', '训练数据的�
 add_arg('test_list_path',   str,    'dataset/test_list.txt',  '测试数据的数据列表路径')
 add_arg('save_model',       str,    'models/',                '模型保存的路径')
 add_arg('pretrained_model', str,    None,                     '预训练模型的路径，当为None则不使用预训练模型')
-add_arg('reg_weight_decay', float,  0.1,                      'weight decay for regression loss')
 args = parser.parse_args()
 
 
@@ -63,7 +62,7 @@ def main():
     model.add(BatchNormalization())
     model.add(Dropout(rate=0.5))
     model.add(Dense(512, kernel_regularizer=tf.keras.regularizers.l2(5e-4), bias_initializer='glorot_uniform'))
-    model.add(BatchNormalization())
+    model.add(BatchNormalization(name='feature_output'))
     model.add(ArcNet(num_classes=args.num_classes))
 
     # 打印模型
