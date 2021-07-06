@@ -131,5 +131,5 @@ Loaded 沙瑞金 audio.
 ```
 
 # 其他版本
- - Tensorflow：[VoiceprintRecognition-Tensorflow](https://github.com/yeyupiaoling/VoiceprintRecognition-Tensorflow)
+ - PaddlePaddle：[VoiceprintRecognition-PaddlePaddle](https://github.com/yeyupiaoling/VoiceprintRecognition-PaddlePaddle)
  - Pytorch：[VoiceprintRecognition_Pytorch](https://github.com/yeyupiaoling/VoiceprintRecognition_Pytorch)
