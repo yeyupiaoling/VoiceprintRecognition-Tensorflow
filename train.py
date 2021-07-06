@@ -2,10 +2,12 @@ import argparse
 import functools
 import os
 import shutil
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 
 import tensorflow as tf
 from tensorflow.keras.applications import ResNet50V2
+from tensorflow.keras.models import Model
 from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
 
 from utils import reader
@@ -47,7 +49,8 @@ def test(model, test_dataset, loss_object, test_loss_metrics, test_accuracy_metr
 def save_model(model):
     if not os.path.exists(args.save_model):
         os.makedirs(args.save_model)
-    model.save(filepath=os.path.join(args.save_model, 'infer_model.h5'))
+    infer_model = Model(inputs=model.input, outputs=model.get_layer('feature_output').output)
+    infer_model.save(filepath=os.path.join(args.save_model, 'infer_model.h5'), include_optimizer=False)
     model.save_weights(filepath=os.path.join(args.save_model, 'model_weights.h5'))
 
 
@@ -110,6 +113,7 @@ def main():
     test_step = 0
     # 开始训练
     for step, (sounds, labels) in enumerate(train_dataset):
+        start = time.time()
         # 执行训练
         with tf.GradientTape() as tape:
             predictions = model(sounds)
@@ -123,9 +127,11 @@ def main():
         train_loss_metrics(train_loss)
         train_accuracy_metrics(labels, predictions)
         # 日志输出
-        if step % 10 == 0:
-            print("[%s] Step [%d/%d], Loss %f, Accuracy %f" % (
-                datetime.now(), step, count_step, train_loss_metrics.result(), train_accuracy_metrics.result()))
+        if step % 100 == 0:
+            eta_sec = ((time.time() - start) * 1000) * (count_step - step)
+            eta_str = str(timedelta(seconds=int(eta_sec / 1000)))
+            print("[%s] Step [%d/%d], Loss %f, Accuracy %f, eta: %s" % (
+                datetime.now(), step, count_step, train_loss_metrics.result(), train_accuracy_metrics.result(), eta_str))
 
         # 记录数据
         with train_summary_writer.as_default():

@@ -41,11 +41,11 @@ def cal_accuracy(y_score, y_true):
 # 预测音频
 def infer(audio_path):
     input_shape = eval(args.input_shape)
-    data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
+    data = load_audio(audio_path, mode='test', spec_len=input_shape[2])
     data = data[np.newaxis, :]
     # 执行预测
     feature = model(data)
-    return feature.numpy()
+    return feature
 
 
 def get_all_audio_feature(list_path):
@@ -54,7 +54,7 @@ def get_all_audio_feature(list_path):
     features, labels = [], []
     print('开始提取全部的音频特征...')
     for line in tqdm(lines):
-        path, label = line.replace('\n', '').split(' ')
+        path, label = line.replace('\n', '').split('\t')
         feature = infer(path)
         features.append(feature)
         labels.append(int(label))
@@ -78,7 +78,7 @@ def main():
             score = cosin_metric(feature_1, feature_2)
             scores.append(score)
             y_true.append(int(labels[i] == labels[j]))
-    accuracy, threshold = cal_accuracy(scores, labels)
+    accuracy, threshold = cal_accuracy(scores, y_true)
     print('当阈值为%f, 准确率最大，为：%f' % (threshold, accuracy))
 
 
