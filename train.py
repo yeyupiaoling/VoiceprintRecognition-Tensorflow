@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
 add_arg('gpus',             str,    '0,1',                    '训练使用的GPU序号，使用英文逗号,隔开，如：0,1')
 add_arg('batch_size',       int,    16,                       '训练的批量大小')
-add_arg('num_epoch',        int,    100,                      '训练的轮数')
+add_arg('num_epoch',        int,    50,                       '训练的轮数')
 add_arg('num_classes',      int,    3242,                     '分类的类别数量')
 add_arg('learning_rate',    float,  1e-3,                     '初始学习率的大小')
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
@@ -44,9 +44,12 @@ def create_model(input_shape):
     model = tf.keras.Sequential()
     model.add(ResNet50V2(input_shape=input_shape, include_top=False, weights=None, pooling='max'))
     model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
-    model.add(Dense(512, kernel_regularizer=tf.keras.regularizers.l2(5e-4), bias_initializer='glorot_uniform'))
-    model.add(BatchNormalization(name='feature_output'))
+    model.add(Dense(units=512,
+                    activation='relu',
+                    kernel_initializer='orthogonal',
+                    kernel_regularizer=tf.keras.regularizers.l2(5e-4),
+                    bias_regularizer=tf.keras.regularizers.l2(5e-4),
+                    name='feature_output'))
     model.add(ArcNet(num_classes=args.num_classes))
     return model
 
@@ -82,7 +85,7 @@ def main():
         model.build(input_shape=input_shape)
         model.summary()
         # 定义优化方法
-        boundaries = [10 * i * epoch_step_sum for i in range(1, args.num_epoch // 10, 2)]
+        boundaries = [10 * i * epoch_step_sum for i in range(1, args.num_epoch // 10, 1)]
         lr = [0.1 ** l * args.learning_rate for l in range(len(boundaries) + 1)]
         scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=boundaries, values=lr)
         optimizer = tf.keras.optimizers.SGD(learning_rate=scheduler, momentum=0.9)
@@ -165,8 +168,9 @@ def main():
             if step % 100 == 0:
                 eta_sec = ((time.time() - start) * 1000) * (count_step - step)
                 eta_str = str(timedelta(seconds=int(eta_sec / 1000)))
-                print("[%s] Step [%d/%d], Loss %f, Accuracy %f, eta: %s" % (
-                    datetime.now(), step, count_step, train_loss_metrics.result(), train_accuracy_metrics.result(), eta_str))
+                print("[%s] Step [%d/%d], Loss %f, Accuracy %f, Learning rate %f, eta: %s" % (
+                    datetime.now(), step, count_step, train_loss_metrics.result(), train_accuracy_metrics.result(),
+                    optimizer._decayed_lr('float32').numpy(), eta_str))
 
             # 记录数据
             with train_summary_writer.as_default():
