@@ -7,9 +7,9 @@
  - Tensorflow 2.3.0
 
 # 模型下载
-| 数据集 | 准确率 | 下载地址 |
-| :---: | :---: | :---: |
-| [中文语音语料数据集](https://github.com/KuangDD/zhvoice) | 训练中 | [训练中]() |
+| 数据集 | 类别数量 | 准确率 | 下载地址 |
+| :---: | :---: | :---: | :---: |
+| [中文语音语料数据集](https://github.com/KuangDD/zhvoice)| 3242 | 训练中 | [训练中]() |
 
 # 安装环境
 1. 安装Tensorflow，如果已经安装过Tensorflow，测无需再次安装。
@@ -33,6 +33,20 @@ pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 ```shell
 python create_data.py
 ```
+
+执行上面的程序之后，会生成以下的数据格式，如果要自定义数据，参考如下数据列表，前面是音频的相对路径，后面的是该音频对应的说话人的标签，就跟分类一样。
+```
+dataset/zhvoice/zhmagicdata/5_895/5_895_20170614203758.wav	3238
+dataset/zhvoice/zhmagicdata/5_895/5_895_20170614214007.wav	3238
+dataset/zhvoice/zhmagicdata/5_941/5_941_20170613151344.wav	3239
+dataset/zhvoice/zhmagicdata/5_941/5_941_20170614221329.wav	3239
+dataset/zhvoice/zhmagicdata/5_941/5_941_20170616153308.wav	3239
+dataset/zhvoice/zhmagicdata/5_968/5_968_20170614162657.wav	3240
+dataset/zhvoice/zhmagicdata/5_968/5_968_20170622194003.wav	3240
+dataset/zhvoice/zhmagicdata/5_968/5_968_20170707200554.wav	3240
+dataset/zhvoice/zhmagicdata/5_970/5_970_20170616000122.wav	3241
+```
+
 
 # 数据读取
 有了上面创建的数据列表和均值标准值，就可以用于训练读取。主要是把语音数据转换短时傅里叶变换的幅度谱，使用librosa可以很方便计算音频的特征，如梅尔频谱的API为`librosa.feature.melspectrogram()`，输出的是numpy值，可以直接用PaddlePaddle训练和预测。跟梅尔频谱同样很重要的梅尔倒谱（MFCCs）更多用于语音识别中，对应的API为`librosa.feature.mfcc()`。在本项目中使用的API分别是`librosa.stft()`和`librosa.magphase()`。在训练时，使用了数据增强，如随机翻转拼接，随机裁剪。经过处理，最终得到一个`257*257`的短时傅里叶变换的幅度谱。
@@ -132,4 +146,5 @@ Loaded 沙瑞金 audio.
 
 # 其他版本
  - PaddlePaddle：[VoiceprintRecognition-PaddlePaddle](https://github.com/yeyupiaoling/VoiceprintRecognition-PaddlePaddle)
- - Pytorch：[VoiceprintRecognition_Pytorch](https://github.com/yeyupiaoling/VoiceprintRecognition_Pytorch)
+ - Pytorch：[VoiceprintRecognition-Pytorch](https://github.com/yeyupiaoling/VoiceprintRecognition-Pytorch)
+ - Keras：[VoiceprintRecognition-Keras](https://github.com/yeyupiaoling/VoiceprintRecognition-Keras)

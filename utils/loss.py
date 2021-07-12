@@ -1,11 +1,11 @@
 import math
-
+from tensorflow.python.keras.utils import losses_utils
 import tensorflow as tf
 
 
 class ArcLoss(tf.keras.losses.Loss):
-    def __init__(self, num_classes, margin=0.5, scale=64):
-        super().__init__()
+    def __init__(self, num_classes, margin=0.5, scale=64, reduction=losses_utils.ReductionV2.AUTO):
+        super().__init__(reduction=reduction)
         self.margin = margin
         self.scale = scale
         self.num_classes = num_classes

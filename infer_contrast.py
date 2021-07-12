@@ -2,6 +2,10 @@ import argparse
 import functools
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.applications import ResNet50V2
+from tensorflow.keras.models import Model
+from utils.metrics import ArcNet
+from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
 from utils.reader import load_audio
 from utils.utility import add_arguments, print_arguments
 
@@ -9,7 +13,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
 add_arg('audio_path1',      str,    'audio/a_1.wav',          '预测第一个音频')
 add_arg('audio_path2',      str,    'audio/b_1.wav',          '预测第二个音频')
-add_arg('input_shape',      str,    '(1, 257, 257)',          '数据输入的形状')
+add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('threshold',        float,   0.7,                     '判断是否为同一个人的阈值')
 add_arg('model_path',       str,    'models/infer_model.h5',  '预测模型的路径')
 args = parser.parse_args()
@@ -19,7 +23,7 @@ print_arguments(args)
 # 加载模型
 model = tf.keras.models.load_model(args.model_path)
 
-# 获取均值和标准值
+# 数据输入的形状
 input_shape = eval(args.input_shape)
 
 # 打印模型
@@ -29,7 +33,7 @@ model.summary()
 
 # 预测音频
 def infer(audio_path):
-    data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
+    data = load_audio(audio_path, mode='test', spec_len=input_shape[1])
     data = data[np.newaxis, :]
     feature = model.predict(data)
     return feature

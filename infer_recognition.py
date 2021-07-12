@@ -12,7 +12,8 @@ from utils.utility import add_arguments, print_arguments
 
 parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
-add_arg('input_shape',      str,    '(1, 257, 257)',          '数据输入的形状')
+add_arg('audio_db',         str,    'audio_db',               '音频库的路径')
+add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('threshold',        float,   0.7,                     '判断是否为同一个人的阈值')
 add_arg('model_path',       str,    'models/infer/model',     '预测模型的路径')
 args = parser.parse_args()
@@ -35,7 +36,7 @@ person_name = []
 
 # 预测音频
 def infer(audio_path):
-    data = load_audio(audio_path, mode='infer', spec_len=input_shape[2])
+    data = load_audio(audio_path, mode='infer', spec_len=input_shape[1])
     data = data[np.newaxis, :]
     feature = model.predict(data)
     return feature
