@@ -44,12 +44,7 @@ def create_model(input_shape):
     model = tf.keras.Sequential()
     model.add(ResNet50V2(input_shape=input_shape, include_top=False, weights=None, pooling='max'))
     model.add(BatchNormalization())
-    model.add(Dense(units=512,
-                    activation='relu',
-                    kernel_initializer='orthogonal',
-                    kernel_regularizer=tf.keras.regularizers.l2(5e-4),
-                    bias_regularizer=tf.keras.regularizers.l2(5e-4),
-                    name='feature_output'))
+    model.add(Dense(units=512, kernel_regularizer=tf.keras.regularizers.l2(5e-4), name='feature_output'))
     model.add(ArcNet(num_classes=args.num_classes))
     return model
 

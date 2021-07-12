@@ -44,8 +44,8 @@ def infer(audio_path):
     data = load_audio(audio_path, mode='test', spec_len=input_shape[2])
     data = data[np.newaxis, :]
     # 执行预测
-    feature = model(data)
-    return feature
+    feature = model.predict(data)
+    return feature[0]
 
 
 def get_all_audio_feature(list_path):
