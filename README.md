@@ -9,7 +9,7 @@
 # 模型下载
 | 数据集 | 类别数量 | 准确率 | 下载地址 |
 | :---: | :---: | :---: | :---: |
-| [中文语音语料数据集](https://github.com/KuangDD/zhvoice)| 3242 | 训练中 | [训练中]() |
+| [中文语音语料数据集](https://github.com/KuangDD/zhvoice)| 3242 | 999693 | [点击下载](https://download.csdn.net/download/qq_33200967/20368421) |
 
 # 安装环境
 1. 安装Tensorflow，如果已经安装过Tensorflow，测无需再次安装。
@@ -91,7 +91,7 @@ model_path: models/infer/model
 开始两两对比音频特征...
 100%|█████████████████████████████████████████████████████| 5332/5332 [01:43<00:00, 51.62it/s]
 100%|█████████████████████████████████████████████████████| 100/100 [00:03<00:00, 28.04it/s]
-当阈值为0.700000, 准确率最大，准确率为：0.999950
+当阈值为0.990000, 准确率最大，准确率为：0.999693
 ```
 
 # 声纹对比
@@ -104,13 +104,27 @@ python infer_contrast.py --audio_path1=audio/a_1.wav --audio_path2=audio/b_2.wav
 ```
 -----------  Configuration Arguments -----------
 audio_path1: audio/a_1.wav
-audio_path2: audio/b_2.wav
-input_shape: (1, 257, 257)
-model_path: models/infer/model
+audio_path2: audio/b_1.wav
+input_shape: (257, 257, 1)
+model_path: models/infer_model.h5
 threshold: 0.7
 ------------------------------------------------
+Model: "functional_1"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+resnet50v2_input (InputLayer [(None, 257, 257, 1)]     0         
+_________________________________________________________________
+resnet50v2 (Functional)      (None, 2048)              23558528  
+_________________________________________________________________
+batch_normalization (BatchNo (None, 2048)              8192      
+=================================================================
+Total params: 23,566,720
+Trainable params: 23,517,184
+Non-trainable params: 49,536
+_________________________________________________________________
 
-audio/a_1.wav 和 audio/b_2.wav 不是同一个人，相似度为：0.020499
+audio/a_1.wav 和 audio/b_1.wav 不是同一个人，相似度为：0.503458
 ```
 
 
@@ -125,10 +139,24 @@ python infer_recognition.py
 ```
 -----------  Configuration Arguments -----------
 audio_db: audio_db
-input_shape: (1, 257, 257)
-model_path: models/infer/model
+input_shape: (257, 257, 1)
+model_path: models/infer_model.h5
 threshold: 0.7
 ------------------------------------------------
+Model: "functional_1"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+resnet50v2_input (InputLayer [(None, 257, 257, 1)]     0         
+_________________________________________________________________
+resnet50v2 (Functional)      (None, 2048)              23558528  
+_________________________________________________________________
+batch_normalization (BatchNo (None, 2048)              8192      
+=================================================================
+Total params: 23,566,720
+Trainable params: 23,517,184
+Non-trainable params: 49,536
+_________________________________________________________________
 
 Loaded 李达康 audio.
 Loaded 沙瑞金 audio.

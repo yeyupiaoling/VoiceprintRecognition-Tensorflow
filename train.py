@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import tensorflow as tf
 from tensorflow.keras.applications import ResNet50V2
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
+from tensorflow.keras.layers import BatchNormalization, Dense
 
 from utils import reader
 from utils.loss import ArcLoss
@@ -112,8 +112,6 @@ def main():
             per_example_loss = loss_object(prediction, label)
             return tf.nn.compute_average_loss(per_example_loss, global_batch_size=BATCH_SIZE)
 
-    count_step = epoch_step_sum * args.num_epoch
-    test_step_num = 0
     with strategy.scope():
         def train_step(inputs):
             sounds, labels = inputs
@@ -133,8 +131,6 @@ def main():
 
         def test_step(inputs):
             sounds, labels = inputs
-            test_loss_metrics.reset_states()
-            test_accuracy_metrics.reset_states()
             # 开始评估
             predictions = model(sounds)
             # 获取损失值
@@ -155,8 +151,11 @@ def main():
             return strategy.experimental_run_v2(test_step, args=(dataset_inputs,))
 
         # 开始训练
+        train_step_num = 0
+        test_step_num = 0
+        count_step = epoch_step_sum * args.num_epoch
+        start = time.time()
         for step, train_inputs in enumerate(train_dataset):
-            start = time.time()
             distributed_train_step(train_inputs)
 
             # 日志输出
@@ -167,11 +166,11 @@ def main():
                     datetime.now(), step, count_step, train_loss_metrics.result(), train_accuracy_metrics.result(),
                     optimizer._decayed_lr('float32').numpy(), eta_str))
 
-            # 记录数据
-            with train_summary_writer.as_default():
-                tf.summary.scalar('Loss', train_loss_metrics.result(), step=step)
-                tf.summary.scalar('Accuracy', train_accuracy_metrics.result(), step=step)
-
+                # 记录数据
+                with train_summary_writer.as_default():
+                    tf.summary.scalar('Loss', train_loss_metrics.result(), step=train_step_num)
+                    tf.summary.scalar('Accuracy', train_accuracy_metrics.result(), step=train_step_num)
+                train_step_num += 1
             # 评估模型
             if step % epoch_step_sum == 0 and step != 0:
                 for test_inputs in test_dataset:
@@ -184,9 +183,12 @@ def main():
                     tf.summary.scalar('Loss', test_loss_metrics.result(), step=test_step_num)
                     tf.summary.scalar('Accuracy', test_accuracy_metrics.result(), step=test_step_num)
                 test_step_num += 1
+                test_loss_metrics.reset_states()
+                test_accuracy_metrics.reset_states()
 
                 # 保存模型
                 save_model(model)
+            start = time.time()
 
 
 if __name__ == '__main__':

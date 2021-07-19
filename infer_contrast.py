@@ -18,6 +18,7 @@ print_arguments(args)
 
 # 加载模型
 model = tf.keras.models.load_model(args.model_path)
+model = tf.keras.models.Model(inputs=model.input, outputs=model.get_layer('batch_normalization').output)
 
 # 数据输入的形状
 input_shape = eval(args.input_shape)
