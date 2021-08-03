@@ -3,4 +3,4 @@ librosa==0.8.0
 numpy==1.19.2
 tqdm==4.59.0
 visualdl==2.1.1
-pydub==0.25.1
+pyaudio==0.2.11
