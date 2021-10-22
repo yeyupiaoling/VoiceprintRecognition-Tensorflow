@@ -17,7 +17,7 @@ from utils.utility import add_arguments, print_arguments
 
 parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
-add_arg('gpus',             str,    '0,1',                    '训练使用的GPU序号，使用英文逗号,隔开，如：0,1')
+add_arg('gpus',             str,    '0',                      '训练使用的GPU序号，使用英文逗号,隔开，如：0,1')
 add_arg('batch_size',       int,    16,                       '训练的批量大小')
 add_arg('num_epoch',        int,    50,                       '训练的轮数')
 add_arg('num_classes',      int,    3242,                     '分类的类别数量')
@@ -25,18 +25,18 @@ add_arg('learning_rate',    float,  1e-3,                     '初始学习率�
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('train_list_path',  str,    'dataset/train_list.txt', '训练数据的数据列表路径')
 add_arg('test_list_path',   str,    'dataset/test_list.txt',  '测试数据的数据列表路径')
-add_arg('save_model',       str,    'models/',                '模型保存的路径')
-add_arg('pretrained_model', str,    None,                     '预训练模型的路径，当为None则不使用预训练模型')
+add_arg('save_model_path',  str,    'models/',                '模型保存的路径')
+add_arg('pretrained_model', str,    'models/model_weights.h5','预训练模型的路径，当为None则不使用预训练模型')
 args = parser.parse_args()
 
 
 # 保存模型
 def save_model(model):
-    if not os.path.exists(args.save_model):
-        os.makedirs(args.save_model)
+    if not os.path.exists(args.save_model_path):
+        os.makedirs(args.save_model_path)
     infer_model = Model(inputs=model.input, outputs=model.get_layer('feature_output').output)
-    infer_model.save(filepath=os.path.join(args.save_model, 'infer_model.h5'), include_optimizer=False)
-    model.save_weights(filepath=os.path.join(args.save_model, 'model_weights.h5'))
+    infer_model.save(filepath=os.path.join(args.save_model_path, 'infer_model.h5'), include_optimizer=False)
+    model.save_weights(filepath=os.path.join(args.save_model_path, 'model_weights.h5'))
 
 
 def create_model(input_shape):
@@ -87,8 +87,8 @@ def main():
 
     with strategy.scope():
         # 加载预训练模型
-        if args.pretrained_model is not None:
-            model.load_weights(os.path.join(args.save_model, 'model_weights.h5'))
+        if args.pretrained_model is not None and os.path.exists(args.pretrained_model):
+            model.load_weights(args.pretrained_model, by_name=True, skip_mismatch=True)
             print('加载预训练模型成功！')
 
     with strategy.scope():
