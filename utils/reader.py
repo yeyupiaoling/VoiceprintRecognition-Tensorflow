@@ -6,9 +6,19 @@ import numpy as np
 
 
 # 加载并预处理音频
-def load_audio(audio_path, mode='train', win_length=400, sr=16000, hop_length=160, n_fft=512, spec_len=257):
+def load_audio(audio_path, mode='train', sr=16000, spec_len=257, use_audio_len=1.3):
     # 读取音频数据
     wav, sr_ret = librosa.load(audio_path, sr=sr)
+    duration = librosa.get_duration(y=wav, sr=sr)
+    assert duration >= use_audio_len, f"非静音部分长度不能低于{use_audio_len}s"
+    # 裁剪音频
+    crop_len = int(use_audio_len * sr_ret)
+    audio_len = int(duration * sr_ret)
+    if mode == 'train':
+        start = random.randint(0, int(audio_len - crop_len))
+        wav = wav[start:start + crop_len]
+    else:
+        wav = wav[:crop_len]
     # 数据拼接
     if mode == 'train':
         extended_wav = np.append(wav, wav)
@@ -17,16 +27,11 @@ def load_audio(audio_path, mode='train', win_length=400, sr=16000, hop_length=16
     else:
         extended_wav = np.append(wav, wav[::-1])
     # 计算短时傅里叶变换
-    linear = librosa.stft(extended_wav, n_fft=n_fft, win_length=win_length, hop_length=hop_length)
+    linear = librosa.stft(extended_wav, n_fft=512, win_length=400, hop_length=160)
     mag, _ = librosa.magphase(linear)
     freq, freq_time = mag.shape
-    assert freq_time >= spec_len, "非静音部分长度不能低于1.3s"
-    if mode == 'train':
-        # 随机裁剪
-        rand_time = np.random.randint(0, freq_time - spec_len)
-        spec_mag = mag[:, rand_time:rand_time + spec_len]
-    else:
-        spec_mag = mag[:, :spec_len]
+    assert freq_time >= spec_len, f"特征长度必须大于等于{spec_len}，当前为：{freq_time}"
+    spec_mag = mag[:, :spec_len]
     mean = np.mean(spec_mag, 0, keepdims=True)
     std = np.std(spec_mag, 0, keepdims=True)
     spec_mag = (spec_mag - mean) / (std + 1e-5)
@@ -47,7 +52,8 @@ def data_generator(data_list_path, spec_len=257):
 
 # 读取训练数据
 def train_reader(data_list_path, batch_size, num_epoch, spec_len=257):
-    ds = tf.data.Dataset.from_generator(generator=lambda:data_generator(data_list_path, spec_len=spec_len),
+    ds = tf.data.Dataset.from_generator(generator=data_generator,
+                                        args=(data_list_path, spec_len),
                                         output_types=(tf.float32, tf.int64))
 
     train_dataset = ds.shuffle(buffer_size=1000) \

@@ -26,6 +26,7 @@ model = tf.keras.models.Model(inputs=model.input, outputs=model.get_layer('batch
 def cal_accuracy(y_score, y_true):
     y_score = np.asarray(y_score)
     y_true = np.asarray(y_true)
+    accuracy_05 = 0
     best_accuracy = 0
     best_threshold = 0
     for i in tqdm(range(0, 100)):
@@ -35,8 +36,10 @@ def cal_accuracy(y_score, y_true):
         if acc > best_accuracy:
             best_accuracy = acc
             best_threshold = threshold
+        if threshold == 0.5:
+            accuracy_05 = acc
 
-    return best_accuracy, best_threshold
+    return best_accuracy, best_threshold, accuracy_05
 
 
 # 预测音频
@@ -79,8 +82,9 @@ def main():
             score = cosin_metric(feature_1, feature_2)
             scores.append(score)
             y_true.append(int(labels[i] == labels[j]))
-    accuracy, threshold = cal_accuracy(scores, y_true)
-    print('当阈值为%f, 准确率最大，为：%f' % (threshold, accuracy))
+    best_accuracy, best_threshold, accuracy_05 = cal_accuracy(scores, y_true)
+    print(f'当阈值为0.5, 准确率为：{accuracy_05:0.5f}')
+    print(f'当阈值为{best_threshold}, 准确率最大，为：{best_accuracy:0.5f}')
 
 
 if __name__ == '__main__':

@@ -4,33 +4,47 @@
 **建议你使用这个版本 [VoiceprintRecognition-Pytorch](https://github.com/yeyupiaoling/VoiceprintRecognition-Pytorch) 或者 [VoiceprintRecognition-PaddlePaddle](https://github.com/yeyupiaoling/VoiceprintRecognition-PaddlePaddle) ，本项目已不维护。**
 使用环境：
 
- - Python 3.7
- - Tensorflow 2.3.0
+ - Python 3.8
+ - Tensorflow 2.13.0
+ - Ubuntu 18.04 or Windows 10
 
 # 模型下载
-| 数据集 | 类别数量 | 准确率 | 下载地址 |
-| :---: | :---: | :---: | :---: |
-| [中文语音语料数据集](https://github.com/fighting41love/zhvoice)| 3242 | 0.999693 | [点击下载](https://download.csdn.net/download/qq_33200967/20368421) |
+|                                  数据集                                  | 类别数量 | 准确率（threshold=0.5） | best_threshold | best_accuracy |   下载地址   |
+|:---------------------------------------------------------------------:|:----:|:------------------:|:--------------:|:-------------:|:--------:|
+| [中文语音语料数据集](https://aistudio.baidu.com/aistudio/datasetdetail/133922) | 3242 |                    |                |               | 加入知识星球获取 |
+|                  [CN-Celeb](http://openslr.org/82/)                   | 2796 |                    |                |               | 加入知识星球获取 |
+|                              VoxCeleb1&2                              | 7205 |                    |                |               | 加入知识星球获取 |
 
 # 安装环境
 1. 安装Tensorflow，如果已经安装过Tensorflow，测无需再次安装。
 ```shell
-pip install tensorflow==2.3.0 -i https://mirrors.aliyun.com/pypi/simple/
+pip install tensorflow==2.13.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+如果安装麻烦，也可以使用Docker容器，但要提前安装[安装 NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)。
+```shell
+sudo docker pull tensorflow/tensorflow:2.13.0-gpu
+sudo docker run -itd --gpus all --name tensorflow -v $PWD/:/workspace/ tensorflow/tensorflow:2.13.0-gpu
+sudo docker exec -it tensorflow /bin/bash
+
 ```
 
 2. 安装其他依赖库，命令如下。
 ```shell
-pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-**注意：** [libsora和pyaudio安装出错解决办法](docs/faq.md)
+2. 如果需要安装pyaudio，请用conda命令安装，pip安装很难成功，命令如下。
+```shell
+conda install pyaudio
+```
 
 # 创建数据
 本教程笔者使用的是[中文语音语料数据集](https://github.com/fighting41love/zhvoice) ，这个数据集一共有3242个人的语音数据，有1130000+条语音数据。如果读者有其他更好的数据集，可以混合在一起使用，但要用python的工具模块aukit处理音频，降噪和去除静音。
 
 首先是创建一个数据列表，数据列表的格式为`<语音文件路径\t语音分类标签>`，创建这个列表主要是方便之后的读取，也是方便读取使用其他的语音数据集，语音分类标签是指说话人的唯一ID，不同的语音数据集，可以通过编写对应的生成数据列表的函数，把这些数据集都写在同一个数据列表中。
 
-在`create_data.py`写下以下代码，因为[中文语音语料数据集](https://github.com/fighting41love/zhvoice) 这个数据集是mp3格式的，作者发现这种格式读取速度很慢，所以笔者把全部的mp3格式的音频转换为wav格式，在创建数据列表之后，可能有些数据的是错误的，所以我们要检查一下，将错误的数据删除。执行下面程序完成数据准备。
+在`create_data.py`创建数据列表，在创建数据列表之后，可能有些数据的是错误的，所以我们要检查一下，将错误的数据删除。执行下面程序完成数据准备。
 ```shell
 python create_data.py
 ```

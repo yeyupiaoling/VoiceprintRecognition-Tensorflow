@@ -32,11 +32,11 @@ args = parser.parse_args()
 
 # 保存模型
 def save_model(model):
-    if not os.path.exists(args.save_model_path):
-        os.makedirs(args.save_model_path)
+    os.makedirs(args.save_model_path, exist_ok=True)
     infer_model = Model(inputs=model.input, outputs=model.get_layer('feature_output').output)
     infer_model.save(filepath=os.path.join(args.save_model_path, 'infer_model.h5'), include_optimizer=False)
     model.save_weights(filepath=os.path.join(args.save_model_path, 'model_weights.h5'))
+    print('模型保存成功！')
 
 
 def create_model(input_shape):
@@ -57,6 +57,7 @@ def main():
     # 支持多卡训练
     strategy = tf.distribute.MirroredStrategy()
     BATCH_SIZE = args.batch_size * strategy.num_replicas_in_sync
+    print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
 
     with open(args.train_list_path, 'r') as f:
         lines = f.readlines()
@@ -140,15 +141,15 @@ def main():
             test_accuracy_metrics(labels, predictions)
 
     with strategy.scope():
-        # `experimental_run_v2`将复制提供的计算并使用分布式输入运行它。
+        # `run`将复制提供的计算并使用分布式输入运行它。
         @tf.function
         def distributed_train_step(dataset_inputs):
-            per_replica_losses = strategy.experimental_run_v2(train_step, args=(dataset_inputs,))
+            per_replica_losses = strategy.run(train_step, args=(dataset_inputs,))
             return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
 
         @tf.function
         def distributed_test_step(dataset_inputs):
-            return strategy.experimental_run_v2(test_step, args=(dataset_inputs,))
+            return strategy.run(test_step, args=(dataset_inputs,))
 
         # 开始训练
         train_step_num = 0
@@ -164,7 +165,7 @@ def main():
                 eta_str = str(timedelta(seconds=int(eta_sec / 1000)))
                 print("[%s] Step [%d/%d], Loss %f, Accuracy %f, Learning rate %f, eta: %s" % (
                     datetime.now(), step, count_step, train_loss_metrics.result(), train_accuracy_metrics.result(),
-                    optimizer._decayed_lr('float32').numpy(), eta_str))
+                    optimizer.learning_rate.numpy(), eta_str))
 
                 # 记录数据
                 with train_summary_writer.as_default():

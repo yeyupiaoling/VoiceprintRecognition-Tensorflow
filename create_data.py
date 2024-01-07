@@ -1,7 +1,7 @@
 import json
 import os
+import sys
 
-from pydub import AudioSegment
 from tqdm import tqdm
 
 from utils.reader import load_audio
@@ -29,19 +29,12 @@ def get_data_list(infodata_path, list_path, zhvoice_path):
             speakers.append(speaker)
         label = speakers_dict[speaker]
         sound_path = os.path.join(zhvoice_path, line['index'])
-        save_path = "%s.wav" % sound_path[:-4]
-        if not os.path.exists(save_path):
-            try:
-                wav = AudioSegment.from_mp3(sound_path)
-                wav.export(save_path, format="wav")
-                os.remove(sound_path)
-            except Exception as e:
-                print('数据出错：%s, 信息：%s' % (sound_path, e))
-                continue
+        if not os.path.exists(sound_path):
+            continue
         if sound_sum % 200 == 0:
-            f_test.write('%s\t%d\n' % (save_path.replace('\\', '/'), label))
+            f_test.write('%s\t%d\n' % (sound_path.replace('\\', '/'), label))
         else:
-            f_train.write('%s\t%d\n' % (save_path.replace('\\', '/'), label))
+            f_train.write('%s\t%d\n' % (sound_path.replace('\\', '/'), label))
         sound_sum += 1
 
     f_test.close()
@@ -56,11 +49,11 @@ def remove_error_audio(data_list_path):
     for line in tqdm(lines):
         audio_path, _ = line.split('\t')
         try:
-            spec_mag = load_audio(audio_path)
+            _ = load_audio(audio_path)
             lines1.append(line)
         except Exception as e:
-            print(audio_path)
-            print(e)
+            print(audio_path, file=sys.stderr)
+            print(e, file=sys.stderr)
     with open(data_list_path, 'w', encoding='utf-8') as f:
         for line in lines1:
             f.write(line)

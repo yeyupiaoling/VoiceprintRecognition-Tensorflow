@@ -1,6 +1,5 @@
-numba==0.52.0
-librosa==0.8.0
-numpy==1.22.0
-tqdm==4.59.0
-visualdl==2.1.1
-pyaudio==0.2.11
+numba==0.58.1
+soundfile==0.12.1
+numpy>=1.21.0
+librosa==0.10.1
+tqdm==4.66.1
