@@ -6,26 +6,32 @@ import numpy as np
 
 
 # 加载并预处理音频
-def load_audio(audio_path, mode='train', sr=16000, spec_len=257, use_audio_len=1.3):
+def load_audio(audio_path, mode='train', sr=16000, spec_len=257, use_audio_len=2.6):
     # 读取音频数据
     wav, sr_ret = librosa.load(audio_path, sr=sr)
     duration = librosa.get_duration(y=wav, sr=sr)
-    assert duration >= use_audio_len, f"非静音部分长度不能低于{use_audio_len}s"
-    # 裁剪音频
-    crop_len = int(use_audio_len * sr_ret)
+    assert duration >= use_audio_len / 2., f"非静音部分长度不能低于{use_audio_len}s"
+    # 裁剪音频，在这里裁剪的原因是避免音频太长，导致计算音频特征耗时过长
+    crop_len = int(use_audio_len * sr_ret) if duration >= use_audio_len else int(duration * sr_ret)
     audio_len = int(duration * sr_ret)
     if mode == 'train':
         start = random.randint(0, int(audio_len - crop_len))
         wav = wav[start:start + crop_len]
     else:
         wav = wav[:crop_len]
-    # 数据拼接
+    # 数据拼接，对于音频长度不够的，反转音频拼接
     if mode == 'train':
-        extended_wav = np.append(wav, wav)
+        if duration < use_audio_len:
+            extended_wav = np.append(wav, wav)
+        else:
+            extended_wav = wav
         if np.random.random() < 0.3:
             extended_wav = extended_wav[::-1]
     else:
-        extended_wav = np.append(wav, wav[::-1])
+        if duration < use_audio_len:
+            extended_wav = np.append(wav, wav[::-1])
+        else:
+            extended_wav = wav
     # 计算短时傅里叶变换
     linear = librosa.stft(extended_wav, n_fft=512, win_length=400, hop_length=160)
     mag, _ = librosa.magphase(linear)
