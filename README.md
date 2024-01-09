@@ -96,6 +96,11 @@ python train.py
 
 训练过程中，会使用tensorboard保存训练日志，通过启动tensorboard可以随时查看训练结果，启动命令`tensorboard --logdir=log --host 0.0.0.0`
 
+<div align="center">
+  <img src="./docs/images/loss.jpg" alt="loss" width="400">
+  <img src="./docs/images/accuracy.jpg" alt="准确率" width="400">
+</div>
+
 # 评估模型
 训练结束之后会保存预测模型，我们用预测模型来预测测试集中的音频特征，然后使用音频特征进行两两对比，阈值从0到1,步长为0.01进行控制，找到最佳的阈值并计算准确率。
 ```shell
