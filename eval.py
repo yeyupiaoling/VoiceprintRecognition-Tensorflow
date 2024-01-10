@@ -11,8 +11,8 @@ from utils.utility import add_arguments, print_arguments, compute_eer
 
 parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
-add_arg('enroll_list',      str,    'dataset/enroll_list.txt',    '测试数据的数据列表路径')
-add_arg('trials_list',      str,    'dataset/trials_list.txt',    '测试数据的数据列表路径')
+add_arg('enroll_list',      str,    'dataset/enroll_list.txt',    '注册数据列表路径')
+add_arg('trials_list',      str,    'dataset/trials_list.txt',    '检索数据列表路径')
 add_arg('input_shape',      str,    '(1, 257, 257)',              '数据输入的形状')
 add_arg('model_path',       str,    'models/best_model/infer_model.h5',  '预测模型的路径')
 args = parser.parse_args()
@@ -30,7 +30,7 @@ def infer(audio_path):
     data = load_audio(audio_path, mode='test', spec_len=input_shape[2])
     data = data[np.newaxis, :]
     # 执行预测
-    feature = model.predict(data)
+    feature = model.predict(data, verbose=0)
     return feature[0]
 
 

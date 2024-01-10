@@ -1,6 +1,5 @@
 import json
 import os
-import random
 import sys
 
 from tqdm import tqdm
@@ -82,6 +81,6 @@ def remove_error_audio(data_list_path):
 
 if __name__ == '__main__':
     get_data_list('dataset/zhvoice/text/infodata.json', 'dataset', 'dataset/zhvoice')
-    remove_error_audio('dataset/train_list.txt')
     remove_error_audio('dataset/enroll_list.txt')
     remove_error_audio('dataset/trials_list.txt')
+    remove_error_audio('dataset/train_list.txt')
