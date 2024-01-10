@@ -4,15 +4,17 @@ import functools
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+from sklearn.metrics.pairwise import cosine_similarity
 
 from utils.reader import load_audio
-from utils.utility import add_arguments, print_arguments
+from utils.utility import add_arguments, print_arguments, compute_eer
 
 parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
-add_arg('list_path',        str,    'dataset/test_list.txt',  '测试数据的数据列表路径')
-add_arg('input_shape',      str,    '(1, 257, 257)',          '数据输入的形状')
-add_arg('model_path',       str,    'models/infer_model.h5',  '预测模型的路径')
+add_arg('enroll_list',      str,    'dataset/enroll_list.txt',    '测试数据的数据列表路径')
+add_arg('trials_list',      str,    'dataset/trials_list.txt',    '测试数据的数据列表路径')
+add_arg('input_shape',      str,    '(1, 257, 257)',              '数据输入的形状')
+add_arg('model_path',       str,    'models/best_model/infer_model.h5',  '预测模型的路径')
 args = parser.parse_args()
 
 print_arguments(args)
@@ -20,26 +22,6 @@ print_arguments(args)
 # 加载模型
 model = tf.keras.models.load_model(args.model_path)
 model = tf.keras.models.Model(inputs=model.input, outputs=model.get_layer('batch_normalization').output)
-
-
-# 根据对角余弦值计算准确率
-def cal_accuracy(y_score, y_true):
-    y_score = np.asarray(y_score)
-    y_true = np.asarray(y_true)
-    accuracy_05 = 0
-    best_accuracy = 0
-    best_threshold = 0
-    for i in tqdm(range(0, 100)):
-        threshold = i * 0.01
-        y_test = (y_score >= threshold)
-        acc = np.mean((y_test == y_true).astype(int))
-        if acc > best_accuracy:
-            best_accuracy = acc
-            best_threshold = threshold
-        if threshold == 0.5:
-            accuracy_05 = acc
-
-    return best_accuracy, best_threshold, accuracy_05
 
 
 # 预测音频
@@ -65,26 +47,22 @@ def get_all_audio_feature(list_path):
     return features, labels
 
 
-# 计算对角余弦值
-def cosin_metric(x1, x2):
-    return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
-
-
 def main():
-    features, labels = get_all_audio_feature(args.list_path)
-    scores = []
-    y_true = []
-    print('开始两两对比音频特征...')
-    for i in tqdm(range(len(features))):
-        feature_1 = features[i]
-        for j in range(i, len(features)):
-            feature_2 = features[j]
-            score = cosin_metric(feature_1, feature_2)
-            scores.append(score)
-            y_true.append(int(labels[i] == labels[j]))
-    best_accuracy, best_threshold, accuracy_05 = cal_accuracy(scores, y_true)
-    print(f'当阈值为0.5, 准确率为：{accuracy_05:0.5f}')
-    print(f'当阈值为{best_threshold}, 准确率最大，为：{best_accuracy:0.5f}')
+    enroll_features, enroll_labels = get_all_audio_feature(args.list_path)
+    trials_features, trials_labels = get_all_audio_feature(args.list_path)
+    print('开始对比音频特征...')
+    all_score, all_labels = [], []
+    for i in tqdm(range(len(trials_features)), desc='特征对比'):
+        trials_feature = np.expand_dims(trials_features[i], 0).repeat(len(enroll_features), axis=0)
+        score = cosine_similarity(trials_feature, enroll_features).tolist()[0]
+        trials_label = np.expand_dims(trials_labels[i], 0).repeat(len(enroll_features), axis=0)
+        y_true = np.array(enroll_labels == trials_label).astype(np.int32).tolist()
+        all_score.extend(score)
+        all_labels.extend(y_true)
+    y_score = np.asarray(all_score)
+    y_true = np.asarray(all_labels)
+    eer, eer_threshold = compute_eer(y_true, y_score)
+    print(f'【EER】 threshold: {eer_threshold:.5f}，EER: {eer:.5f}')
 
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@ add_arg = functools.partial(add_arguments, argparser=parser)
 add_arg('audio_db',         str,    'audio_db',               '音频库的路径')
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('threshold',        float,   0.7,                     '判断是否为同一个人的阈值')
-add_arg('model_path',       str,    'models/infer_model.h5',  '预测模型的路径')
+add_arg('model_path',       str,    'models/best_model/infer_model.h5',  '预测模型的路径')
 args = parser.parse_args()
 
 print_arguments(args)

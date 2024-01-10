@@ -20,22 +20,22 @@ add_arg = functools.partial(add_arguments, argparser=parser)
 add_arg('gpus',             str,    '0',                      '训练使用的GPU序号，使用英文逗号,隔开，如：0,1')
 add_arg('batch_size',       int,    16,                       '训练的批量大小')
 add_arg('num_epoch',        int,    50,                       '训练的轮数')
-add_arg('num_classes',      int,    3242,                     '分类的类别数量')
+add_arg('num_classes',      int,    2798,                     '分类的类别数量')
 add_arg('learning_rate',    float,  1e-3,                     '初始学习率的大小')
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('train_list_path',  str,    'dataset/train_list.txt', '训练数据的数据列表路径')
-add_arg('test_list_path',   str,    'dataset/test_list.txt',  '测试数据的数据列表路径')
 add_arg('save_model_path',  str,    'models/',                '模型保存的路径')
 add_arg('pretrained_model', str,    'models/model_weights.h5','预训练模型的路径，当为None则不使用预训练模型')
 args = parser.parse_args()
 
 
 # 保存模型
-def save_model(model):
-    os.makedirs(args.save_model_path, exist_ok=True)
+def save_model(model, save_name: str):
+    save_model_path = os.path.join(args.save_model_path, save_name)
+    os.makedirs(save_model_path, exist_ok=True)
     infer_model = Model(inputs=model.input, outputs=model.get_layer('feature_output').output)
-    infer_model.save(filepath=os.path.join(args.save_model_path, 'infer_model.h5'), include_optimizer=False)
-    model.save_weights(filepath=os.path.join(args.save_model_path, 'model_weights.h5'))
+    infer_model.save(filepath=os.path.join(save_model_path, 'infer_model.h5'), include_optimizer=False)
+    model.save_weights(filepath=os.path.join(save_model_path, 'model_weights.h5'))
     print('模型保存成功！')
 
 
@@ -68,7 +68,7 @@ def main():
                                         batch_size=BATCH_SIZE,
                                         num_epoch=args.num_epoch,
                                         spec_len=input_shape[1])
-    test_dataset = reader.test_reader(data_list_path=args.test_list_path,
+    test_dataset = reader.test_reader(data_list_path=args.train_list_path,
                                       batch_size=BATCH_SIZE,
                                       spec_len=input_shape[1])
     # 支持多卡训练
@@ -154,6 +154,7 @@ def main():
         # 开始训练
         train_step_num = 0
         test_step_num = 0
+        best_test_accuracy = 0
         count_step = epoch_step_sum * args.num_epoch
         start = time.time()
         for step, train_inputs in enumerate(train_dataset):
@@ -186,9 +187,11 @@ def main():
                 test_step_num += 1
                 test_loss_metrics.reset_states()
                 test_accuracy_metrics.reset_states()
-
+                if test_accuracy_metrics.result() >= best_test_accuracy:
+                    best_test_accuracy = test_accuracy_metrics.result()
+                    save_model(model, 'best_model')
                 # 保存模型
-                save_model(model)
+                save_model(model, f'save_model')
             start = time.time()
 
 
