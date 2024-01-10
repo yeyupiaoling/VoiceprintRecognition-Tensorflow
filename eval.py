@@ -48,8 +48,8 @@ def get_all_audio_feature(list_path):
 
 
 def main():
-    enroll_features, enroll_labels = get_all_audio_feature(args.list_path)
-    trials_features, trials_labels = get_all_audio_feature(args.list_path)
+    enroll_features, enroll_labels = get_all_audio_feature(args.enroll_list)
+    trials_features, trials_labels = get_all_audio_feature(args.trials_list)
     print('开始对比音频特征...')
     all_score, all_labels = [], []
     for i in tqdm(range(len(trials_features)), desc='特征对比'):

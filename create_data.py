@@ -12,13 +12,12 @@ from utils.reader import load_audio
 def get_data_list(infodata_path, list_path, zhvoice_path):
     with open(infodata_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-        random.shuffle(lines)
 
     f_train = open(os.path.join(list_path, 'train_list.txt'), 'w')
     f_enroll = open(os.path.join(list_path, 'enroll_list.txt'), 'w')
     f_trials = open(os.path.join(list_path, 'trials_list.txt'), 'w')
 
-    speakers_name = set()
+    speakers_name = []
     for line in lines:
         line = json.loads(line.replace('\n', ''))
         duration_ms = line['duration_ms']
@@ -28,8 +27,8 @@ def get_data_list(infodata_path, list_path, zhvoice_path):
         if not os.path.exists(sound_path):
             continue
         speaker = line['speaker']
-        speakers_name.add(speaker)
-    speakers_name = list(speakers_name)
+        if speaker not in speakers_name:
+            speakers_name.append(speaker)
     test_speaker_name = [name for i, name in enumerate(speakers_name) if i % 32 == 0]
     train_speaker_name = [name for name in speakers_name if name not in test_speaker_name]
     train_speaker_dict = {name: i for i, name in enumerate(train_speaker_name)}

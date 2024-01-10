@@ -18,11 +18,11 @@
  - Ubuntu 18.04 or Windows 10
 
 # 模型下载
-|                                 数据集                                 | 类别数量 | 准确率（threshold=0.5） | best_threshold | best_accuracy |   下载地址   |
-|:-------------------------------------------------------------------:|:----:|:------------------:|:--------------:|:-------------:|:--------:|
-| [zhvoice](https://aistudio.baidu.com/aistudio/datasetdetail/133922) | 3242 |                    |                |               | 加入知识星球获取 |
-|                 [CN-Celeb](http://openslr.org/82/)                  | 2796 |                    |                |               | 加入知识星球获取 |
-|                             VoxCeleb1&2                             | 7205 |                    |                |               | 加入知识星球获取 |
+|                                 数据集                                 | 类别数量 | threshold | EER |   下载地址   |
+|:-------------------------------------------------------------------:|:----:|:---------:|:---:|:--------:|
+| [zhvoice](https://aistudio.baidu.com/aistudio/datasetdetail/133922) | 2798 |           |     | 加入知识星球获取 |
+|                 [CN-Celeb](http://openslr.org/82/)                  | 2796 |           |     | 加入知识星球获取 |
+|                             VoxCeleb1&2                             | 7205 |           |     | 加入知识星球获取 |
 
 # 安装环境
 1. 安装Tensorflow，如果已经安装过Tensorflow，测无需再次安装。
@@ -49,7 +49,7 @@ conda install pyaudio
 ```
 
 # 创建数据
-本教程笔者使用的是[zhvoice](https://aistudio.baidu.com/aistudio/datasetdetail/133922) ，这个数据集一共有3242个人的语音数据，有1130000+条语音数据。如果读者有其他更好的数据集，可以混合在一起使用，但要用python的工具模块aukit处理音频，降噪和去除静音。
+本教程笔者使用的是[zhvoice](https://aistudio.baidu.com/aistudio/datasetdetail/133922) ，这个数据集经过处理，一共有2798个人的训练数据，91个人的评估数据，有80W+条语音数据。如果读者有其他更好的数据集，可以混合在一起使用，但要用python的工具模块aukit处理音频，降噪和去除静音。
 
 首先是创建一个数据列表，数据列表的格式为`<语音文件路径\t语音分类标签>`，创建这个列表主要是方便之后的读取，也是方便读取使用其他的语音数据集，语音分类标签是指说话人的唯一ID，不同的语音数据集，可以通过编写对应的生成数据列表的函数，把这些数据集都写在同一个数据列表中。
 
@@ -60,15 +60,16 @@ python create_data.py
 
 执行上面的程序之后，会生成以下的数据格式，如果要自定义数据，参考如下数据列表，前面是音频的相对路径，后面的是该音频对应的说话人的标签，就跟分类一样。
 ```
-dataset/zhvoice/zhmagicdata/5_895/5_895_20170614203758.wav	3238
-dataset/zhvoice/zhmagicdata/5_895/5_895_20170614214007.wav	3238
-dataset/zhvoice/zhmagicdata/5_941/5_941_20170613151344.wav	3239
-dataset/zhvoice/zhmagicdata/5_941/5_941_20170614221329.wav	3239
-dataset/zhvoice/zhmagicdata/5_941/5_941_20170616153308.wav	3239
-dataset/zhvoice/zhmagicdata/5_968/5_968_20170614162657.wav	3240
-dataset/zhvoice/zhmagicdata/5_968/5_968_20170622194003.wav	3240
-dataset/zhvoice/zhmagicdata/5_968/5_968_20170707200554.wav	3240
-dataset/zhvoice/zhmagicdata/5_970/5_970_20170616000122.wav	3241
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0129.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0130.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0131.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0132.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0133.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0134.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0135.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0136.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0137.mp3    1104
+dataset/zhvoice/zhaishell/S0002/BAC009S0002W0138.mp3    1104
 ```
 
 
