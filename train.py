@@ -1,5 +1,6 @@
 import argparse
 import functools
+import json
 import os
 import shutil
 import time
@@ -21,7 +22,7 @@ add_arg('gpus',             str,    '0',                      '训练使用的GP
 add_arg('batch_size',       int,    16,                       '训练的批量大小')
 add_arg('num_epoch',        int,    50,                       '训练的轮数')
 add_arg('num_classes',      int,    2798,                     '分类的类别数量')
-add_arg('learning_rate',    float,  1e-3,                     '初始学习率的大小')
+add_arg('learning_rate',    float,  5e-4,                     '初始学习率的大小')
 add_arg('input_shape',      str,    '(257, 257, 1)',          '数据输入的形状')
 add_arg('train_list_path',  str,    'dataset/train_list.txt', '训练数据的数据列表路径')
 add_arg('save_model_path',  str,    'models/',                '模型保存的路径')
@@ -30,12 +31,15 @@ args = parser.parse_args()
 
 
 # 保存模型
-def save_model(model, save_name: str):
+def save_model(model, save_name: str, step: int, accuracy: float):
     save_model_path = os.path.join(args.save_model_path, save_name)
     os.makedirs(save_model_path, exist_ok=True)
     infer_model = Model(inputs=model.input, outputs=model.get_layer('feature_output').output)
     infer_model.save(filepath=os.path.join(save_model_path, 'infer_model.h5'), include_optimizer=False)
     model.save_weights(filepath=os.path.join(save_model_path, 'model_weights.h5'))
+    with open(os.path.join(save_model_path, 'model.state'), 'w', encoding='utf-8') as f:
+        data = {"step": step, "accuracy": accuracy}
+        f.write(json.dumps(data, ensure_ascii=False))
     print('模型保存成功！')
 
 
@@ -177,21 +181,23 @@ def main():
             if step % epoch_step_sum == 0 and step != 0:
                 for test_inputs in test_dataset:
                     distributed_test_step(test_inputs)
+                test_accuracy = float(test_accuracy_metrics.result())
+                test_loss1 = float(test_loss_metrics.result())
                 print('=================================================')
-                print("[%s] Test Loss %f, Accuracy %f" % (datetime.now(), test_loss_metrics.result(), test_accuracy_metrics.result()))
+                print(f"[{datetime.now()}] Test Loss {test_loss1}, Accuracy {test_accuracy}")
                 print('=================================================')
                 # 记录数据
                 with test_summary_writer.as_default():
-                    tf.summary.scalar('Loss', test_loss_metrics.result(), step=test_step_num)
-                    tf.summary.scalar('Accuracy', test_accuracy_metrics.result(), step=test_step_num)
+                    tf.summary.scalar('Loss', test_loss1, step=test_step_num)
+                    tf.summary.scalar('Accuracy', test_accuracy, step=test_step_num)
                 test_step_num += 1
                 test_loss_metrics.reset_states()
                 test_accuracy_metrics.reset_states()
-                if test_accuracy_metrics.result() >= best_test_accuracy:
-                    best_test_accuracy = test_accuracy_metrics.result()
-                    save_model(model, 'best_model')
+                if test_accuracy >= best_test_accuracy:
+                    best_test_accuracy = test_accuracy
+                    save_model(model, 'best_model', step=step, accuracy=test_accuracy)
                 # 保存模型
-                save_model(model, f'save_model')
+                save_model(model, f'save_model', step=step, accuracy=test_accuracy)
             start = time.time()
 
 
