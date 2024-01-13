@@ -10,7 +10,7 @@ def load_audio(audio_path, mode='train', sr=16000, spec_len=257, use_audio_len=2
     # 读取音频数据
     wav, sr_ret = librosa.load(audio_path, sr=sr)
     duration = librosa.get_duration(y=wav, sr=sr)
-    assert duration >= use_audio_len / 2., f"非静音部分长度不能低于{use_audio_len}s"
+    assert duration >= use_audio_len / 2., f"非静音部分长度不能低于{use_audio_len / 2.}s"
     # 裁剪音频，在这里裁剪的原因是避免音频太长，导致计算音频特征耗时过长
     crop_len = int(use_audio_len * sr_ret) if duration >= use_audio_len else int(duration * sr_ret)
     audio_len = int(duration * sr_ret)
