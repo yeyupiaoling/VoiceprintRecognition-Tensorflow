@@ -85,7 +85,7 @@ def main():
         model.build(input_shape=input_shape)
         model.summary()
         # 定义优化方法
-        boundaries = [10 * i * epoch_step_sum for i in range(1, args.num_epoch // 10, 1)]
+        boundaries = [5 * i * epoch_step_sum for i in range(1, args.num_epoch // 5, 1)]
         lr = [0.1 ** l * args.learning_rate for l in range(len(boundaries) + 1)]
         scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=boundaries, values=lr)
         optimizer = tf.keras.optimizers.SGD(learning_rate=scheduler, momentum=0.9)
@@ -190,6 +190,7 @@ def main():
                 with test_summary_writer.as_default():
                     tf.summary.scalar('Loss', test_loss1, step=test_step_num)
                     tf.summary.scalar('Accuracy', test_accuracy, step=test_step_num)
+                    tf.summary.scalar('Learning Rate', optimizer.learning_rate.numpy(), step=test_step_num)
                 test_step_num += 1
                 test_loss_metrics.reset_states()
                 test_accuracy_metrics.reset_states()
