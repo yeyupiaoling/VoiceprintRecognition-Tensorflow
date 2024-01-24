@@ -88,7 +88,7 @@ def main():
         boundaries = [5 * i * epoch_step_sum for i in range(1, args.num_epoch // 5, 1)]
         lr = [0.1 ** l * args.learning_rate for l in range(len(boundaries) + 1)]
         scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=boundaries, values=lr)
-        optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
+        optimizer = tf.keras.optimizers.SGD(learning_rate=scheduler, momentum=0.9)
 
     with strategy.scope():
         # 加载预训练模型
